@@ -5,60 +5,116 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
-  TextInput,
 } from 'react-native';
 import { Text, Searchbar } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import RestaurantCard from '../../components/restaurant/RestaurantCard';
-import restaurantService, { Restaurant } from '../../services/restaurantService';
 import { MainStackParamList } from '../../navigation/types';
+
+// API Configuration: Tự động chọn URL dựa trên môi trường (Android Emulator hay iOS/Web)
+const getBaseURL = () => {
+  if (__DEV__) {
+    // Android Emulator dùng 10.0.2.2 để gọi localhost của máy tính
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:3000/api';
+    }
+    // iOS Simulator và Web dùng localhost
+    return 'http://localhost:3000/api';
+  }
+  // URL cho môi trường Production (khi build app thật)
+  return 'https://your-production-api.com/api';
+};
+
+const API_BASE_URL = getBaseURL();
+
+// Restaurant Interface: Interface cho dữ liệu nhà hàng nhận từ API
+interface Restaurant {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  address: string;
+  phone: string;
+  cover_url: string;
+  logo_url: string;
+  is_open: boolean;
+  rating: number;
+  category: string;
+  created_at: string;
+  updated_at: string;
+}
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  
+
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Load restaurants
-  const loadRestaurants = async (showLoader = true) => {
+  // Hàm gọi API lấy danh sách nhà hàng (Mặc định show loading)
+  const fetchRestaurants = async (showLoader = true) => {
     try {
-      if (showLoader) setLoading(true);
+      if (showLoader) setLoading(true); // Hiện spinner quay tròn
       setError(null);
 
-      const response = await restaurantService.getRestaurants({ limit: 50 });
-      setRestaurants(response.data.restaurants);
+      // Lấy token đăng nhập (nếu có) để server biết user là ai
+      const token = await AsyncStorage.getItem('@foodgo_token');
+
+      // Gửi GET request tới backend
+      const response = await axios.get(`${API_BASE_URL}/restaurants`, {
+        params: { limit: 50 }, // Lấy tối đa 50 quán
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      // Backend trả về: { success: true, data: { restaurants: [...] } }
+      // Lưu danh sách quán vào state để hiển thị
+      setRestaurants(response.data.data.restaurants || []);
+      console.log('Loaded restaurants:', response.data.data.restaurants?.length || 0);
     } catch (err: any) {
       console.error('Error loading restaurants:', err);
-      setError(err.message || 'Failed to load restaurants');
+      // Lấy message lỗi từ backend (nếu có) hoặc hiển thị lỗi mặc định
+      setError(err.response?.data?.message || 'Failed to load restaurants');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoading(false); // Tắt spinner
+      setRefreshing(false); // Tắt trạng thái pull-to-refresh
     }
   };
 
-  // Search restaurants
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    
+  // Hàm tìm kiếm nhà hàng
+  const searchRestaurants = async (query: string) => {
+    setSearchQuery(query); // Cập nhật text liên tục khi user gõ
+
+    // Nếu keyword rỗng -> Load lại toàn bộ danh sách
     if (!query.trim()) {
-      loadRestaurants(false);
+      fetchRestaurants(false);
       return;
     }
 
     try {
-      setLoading(true);
-      const results = await restaurantService.searchRestaurants(query);
-      setRestaurants(results);
+      setLoading(true); // Hiện loading khi đang tìm
+      const token = await AsyncStorage.getItem('@foodgo_token');
+
+      // Gọi API search với tham số ?q=keyword
+      const response = await axios.get(`${API_BASE_URL}/restaurants`, {
+        params: { q: query, limit: 50 },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      // Cập nhật kết quả tìm kiếm
+      setRestaurants(response.data.data.restaurants || []);
+      console.log('Search results:', response.data.data.restaurants?.length || 0);
     } catch (err: any) {
       console.error('Error searching restaurants:', err);
-      setError(err.message || 'Search failed');
+      setError(err.response?.data?.message || 'Search failed');
     } finally {
       setLoading(false);
     }
@@ -68,7 +124,7 @@ const HomeScreen: React.FC = () => {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setSearchQuery('');
-    loadRestaurants(false);
+    fetchRestaurants(false);
   }, []);
 
   // Navigate to restaurant detail
@@ -78,8 +134,13 @@ const HomeScreen: React.FC = () => {
 
   // Load data on mount
   useEffect(() => {
-    loadRestaurants();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchRestaurants().catch(err => {
+        console.error('Error in focus listener:', err);
+      });
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   // Render empty state
   const renderEmptyState = () => {
@@ -105,7 +166,7 @@ const HomeScreen: React.FC = () => {
     <View style={styles.errorContainer}>
       <Icon name="alert-circle" size={80} color="#F44336" />
       <Text style={styles.errorText}>{error}</Text>
-      <Text style={styles.retryText} onPress={() => loadRestaurants()}>
+      <Text style={styles.retryText} onPress={() => fetchRestaurants()}>
         Tap to retry
       </Text>
     </View>
@@ -121,7 +182,7 @@ const HomeScreen: React.FC = () => {
       <View style={styles.searchContainer}>
         <Searchbar
           placeholder="Search restaurants..."
-          onChangeText={handleSearch}
+          onChangeText={searchRestaurants}
           value={searchQuery}
           style={styles.searchBar}
           icon="magnify"

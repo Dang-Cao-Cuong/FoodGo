@@ -173,3 +173,25 @@ exports.getRestaurantOrders = async (req, res, next) => {
     next(error);
   }
 };
+
+// Pay for order
+exports.payOrder = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { orderId } = req.params;
+    const { action } = req.body; // 'deliver' or 'cancel'
+
+    if (!action || !['deliver', 'cancel'].includes(action)) {
+      return res.status(400).json({ message: 'Invalid action. Must be "deliver" or "cancel"' });
+    }
+
+    const order = await Order.payOrder(orderId, userId, action);
+
+    res.json({
+      message: `Order ${action === 'deliver' ? 'completed' : 'cancelled'} successfully`,
+      order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

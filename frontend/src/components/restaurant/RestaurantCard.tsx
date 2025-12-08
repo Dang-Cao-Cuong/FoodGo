@@ -2,9 +2,18 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { Restaurant } from '../../services/restaurantService';
 import FavoriteButton from '../common/FavoriteButton';
 import { getImageFromPath } from '../../assets/images';
+
+interface Restaurant {
+  id: number;
+  name: string;
+  description?: string;
+  address: string;
+  phone?: string;
+  cover_url?: string;
+  is_open: boolean;
+}
 
 interface RestaurantCardProps {
   restaurant: Restaurant;

@@ -6,12 +6,44 @@ import {
   RefreshControl,
   ActivityIndicator,
   Text,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import SearchBar from '../../components/common/SearchBar';
 import RestaurantCard from '../../components/restaurant/RestaurantCard';
-import restaurantService, { Restaurant } from '../../services/restaurantService';
+
+// API Configuration
+const getBaseURL = () => {
+  if (__DEV__) {
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:3000/api';
+    }
+    return 'http://localhost:3000/api';
+  }
+  return 'https://your-production-api.com/api';
+};
+
+const API_BASE_URL = getBaseURL();
+
+// Restaurant Interface
+interface Restaurant {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  address: string;
+  phone: string;
+  cover_url: string;
+  logo_url: string;
+  is_open: boolean;
+  rating: number;
+  category: string;
+  created_at: string;
+  updated_at: string;
+}
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -39,22 +71,29 @@ const RestaurantListScreen: React.FC = () => {
       
       setError(null);
 
-      const response = await restaurantService.getRestaurants({
-        q: searchTerm || undefined,
-        limit: 20,
-        offset: isRefresh ? 0 : (page - 1) * 20,
+      const token = await AsyncStorage.getItem('@foodgo_token');
+      const response = await axios.get(`${API_BASE_URL}/restaurants`, {
+        params: { 
+          q: searchTerm || undefined,
+          limit: 20,
+          offset: isRefresh ? 0 : (page - 1) * 20,
+        },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
+      // Backend returns: { success, data: { restaurants, count, limit, offset } }
+      const restaurantData = response.data.data.restaurants || [];
+
       if (isRefresh || page === 1) {
-        setRestaurants(response.data.restaurants);
+        setRestaurants(restaurantData);
       } else {
-        setRestaurants(prev => [...prev, ...response.data.restaurants]);
+        setRestaurants(prev => [...prev, ...restaurantData]);
       }
 
-      setHasMore(response.data.restaurants.length === 20);
+      setHasMore(restaurantData.length === 20);
     } catch (err: any) {
       console.error('Error loading restaurants:', err);
-      setError(err.message || 'Failed to load restaurants');
+      setError(err.response?.data?.message || 'Failed to load restaurants');
     } finally {
       setLoading(false);
       setRefreshing(false);

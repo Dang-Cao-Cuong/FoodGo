@@ -17,8 +17,22 @@ import {
 } from 'react-native-paper';
 import { useAuth } from '../../contexts/AuthContext';
 
+// User Interface
+interface User {
+  id: number;
+  name: string;
+  full_name?: string;
+  email: string;
+  phone: string;
+  address: string;
+  role?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const ProfileScreen: React.FC = () => {
-  const { user, logout, updateProfile, changePassword, isLoading } = useAuth();
+  const { user: authUser, logout, updateProfile, changePassword, isLoading } = useAuth();
+  const user = authUser as unknown as User;
   
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -27,6 +41,7 @@ const ProfileScreen: React.FC = () => {
   const [profileData, setProfileData] = useState({
     full_name: user?.full_name || '',
     phone: user?.phone || '',
+    address: user?.address || '',
   });
   
   // Password form state
@@ -62,6 +77,7 @@ const ProfileScreen: React.FC = () => {
     setProfileData({
       full_name: user?.full_name || '',
       phone: user?.phone || '',
+      address: user?.address || '',
     });
     setIsEditing(false);
   };
@@ -163,10 +179,10 @@ const ProfileScreen: React.FC = () => {
         <Card.Content style={styles.profileHeader}>
           <Avatar.Text
             size={80}
-            label={user.full_name.substring(0, 2).toUpperCase()}
+            label={(user.full_name || user.email || 'U').substring(0, 2).toUpperCase()}
             style={styles.avatar}
           />
-          <Title style={styles.name}>{user.full_name}</Title>
+          <Title style={styles.name}>{user.full_name || 'No Name'}</Title>
           <Text style={styles.email}>{user.email}</Text>
           <Text style={styles.role}>
             {user.role === 'admin' ? '👑 Admin' : '👤 Customer'}
@@ -182,7 +198,12 @@ const ProfileScreen: React.FC = () => {
             <>
               <View style={styles.infoRow}>
                 <Text style={styles.label}>Full Name:</Text>
-                <Text style={styles.value}>{user.full_name}</Text>
+                <Text style={styles.value}>{user.full_name || 'Not set'}</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>Email:</Text>
+                <Text style={styles.value}>{user.email}</Text>
               </View>
               
               <View style={styles.infoRow}>
@@ -191,10 +212,8 @@ const ProfileScreen: React.FC = () => {
               </View>
               
               <View style={styles.infoRow}>
-                <Text style={styles.label}>Verified:</Text>
-                <Text style={styles.value}>
-                  {user.is_verified ? '✅ Yes' : '❌ No'}
-                </Text>
+                <Text style={styles.label}>Address:</Text>
+                <Text style={styles.value}>{user.address || 'Not set'}</Text>
               </View>
               
               <View style={styles.infoRow}>
@@ -231,6 +250,18 @@ const ProfileScreen: React.FC = () => {
                 }
                 mode="outlined"
                 keyboardType="phone-pad"
+                style={styles.input}
+              />
+              
+              <TextInput
+                label="Address"
+                value={profileData.address}
+                onChangeText={(text) =>
+                  setProfileData({ ...profileData, address: text })
+                }
+                mode="outlined"
+                multiline
+                numberOfLines={2}
                 style={styles.input}
               />
 

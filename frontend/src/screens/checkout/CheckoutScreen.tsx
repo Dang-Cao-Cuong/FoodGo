@@ -9,14 +9,29 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
+  Platform,
 } from 'react-native';
 import { Button } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { createOrder, CreateOrderData } from '../../services/orderService';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '../../navigation/types';
+
+// ==================== API CONFIGURATION ====================
+const getBaseURL = () => {
+  if (__DEV__) {
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:3000/api';
+    }
+    return 'http://localhost:3000/api';
+  }
+  return 'https://your-production-api.com/api';
+};
+
+const API_BASE_URL = getBaseURL();
 
 type CheckoutScreenNavigationProp = NativeStackNavigationProp<MainStackParamList, 'Checkout'>;
 
@@ -56,13 +71,20 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
 
     try {
       setLoading(true);
+      console.log('Creating order for restaurant:', restaurantId);
 
-      // Prepare order data
-      const orderData: CreateOrderData = {
-        restaurantId,
+      const token = await AsyncStorage.getItem('@foodgo_token');
+      if (!token) {
+        Alert.alert('Error', 'Please login to place an order');
+        return;
+      }
+
+      // Prepare order data - backend expects camelCase
+      const orderData = {
+        restaurantId: restaurantId,
         deliveryAddress: deliveryAddress.trim(),
         totalAmount: total,
-        deliveryFee,
+        deliveryFee: deliveryFee,
         taxAmount: tax,
         subtotalAmount: subtotal,
         notes: orderNotes.trim() || undefined,
@@ -74,8 +96,22 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
         })),
       };
 
+      console.log('Order data:', { ...orderData, items: orderData.items.length + ' items' });
+
       // Create order
-      const order = await createOrder(orderData);
+      const response = await axios.post(
+        `${API_BASE_URL}/orders`,
+        orderData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Backend returns: { message, order }
+      const order = response.data.order;
+      console.log('Order created successfully:', order.id);
 
       // Clear cart
       clearCart();
@@ -96,8 +132,18 @@ const CheckoutScreen: React.FC<CheckoutScreenProps> = ({ navigation }) => {
         ]
       );
     } catch (error: any) {
-      console.error('Error placing order:', error);
-      Alert.alert('Error', error.message || 'Failed to place order. Please try again.');
+      console.error('Error placing order:', error.response?.data || error.message);
+      
+      // Log detailed error information
+      if (error.response?.data?.errors) {
+        console.error('Validation errors:', JSON.stringify(error.response.data.errors, null, 2));
+      }
+      
+      const errorMessage = error.response?.data?.errors
+        ? 'Please check all required fields'
+        : error.response?.data?.message || error.message || 'Failed to place order. Please try again.';
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }

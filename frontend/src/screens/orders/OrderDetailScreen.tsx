@@ -9,14 +9,60 @@ import {
   TouchableOpacity,
   SafeAreaView,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Button, Chip } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getOrderById, cancelOrder, Order } from '../../services/orderService';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { MainStackParamList } from '../../navigation/types';
+
+// ==================== API CONFIGURATION ====================
+const getBaseURL = () => {
+  if (__DEV__) {
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:3000/api';
+    }
+    return 'http://localhost:3000/api';
+  }
+  return 'https://your-production-api.com/api';
+};
+
+const API_BASE_URL = getBaseURL();
+
+// ==================== INTERFACES ====================
+interface OrderItem {
+  id: number;
+  order_id: number;
+  menu_item_id: number;
+  menu_item_name: string;
+  quantity: number;
+  price: number;
+  notes?: string;
+}
+
+interface Order {
+  id: number;
+  user_id: number;
+  restaurant_id: number;
+  restaurant_name: string;
+  restaurant_address?: string;
+  restaurant_phone?: string;
+  status: 'preparing' | 'delivered' | 'cancelled';
+  total_amount: number;
+  subtotal_amount: number;
+  tax_amount: number;
+  delivery_fee: number;
+  delivery_address: string;
+  delivery_phone: string;
+  notes?: string;
+  items?: OrderItem[];
+  created_at: string;
+  updated_at: string;
+}
 
 type RouteParams = {
   OrderDetail: {
@@ -31,31 +77,19 @@ interface OrderDetailScreenProps {
 }
 
 const STATUS_COLORS: Record<Order['status'], string> = {
-  pending: '#FFC107',
-  confirmed: '#2196F3',
   preparing: '#9C27B0',
-  ready: '#4CAF50',
-  out_for_delivery: '#00BCD4',
   delivered: '#4CAF50',
   cancelled: '#F44336',
 };
 
 const STATUS_LABELS: Record<Order['status'], string> = {
-  pending: 'Pending',
-  confirmed: 'Confirmed',
   preparing: 'Preparing',
-  ready: 'Ready',
-  out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
 
 const STATUS_ICONS: Record<Order['status'], string> = {
-  pending: 'clock-outline',
-  confirmed: 'check-circle-outline',
   preparing: 'chef-hat',
-  ready: 'food',
-  out_for_delivery: 'truck-delivery',
   delivered: 'check-circle',
   cancelled: 'close-circle',
 };
@@ -68,9 +102,11 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ navigation }) => 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadOrderDetails = useCallback(async (isRefresh = false) => {
+  // ==================== API FUNCTIONS ====================
+  const fetchOrderDetail = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -79,20 +115,35 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ navigation }) => 
       }
       setError(null);
 
-      const orderData = await getOrderById(orderId);
-      setOrder(orderData);
+      console.log('Fetching order detail for orderId:', orderId);
+
+      const token = await AsyncStorage.getItem('@foodgo_token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/orders/${orderId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Backend returns order directly (no nested data)
+      console.log('Order detail loaded:', response.data.id);
+      setOrder(response.data);
     } catch (err: any) {
-      console.error('Error loading order details:', err);
-      setError(err.message || 'Failed to load order details');
+      console.error('Error loading order details:', err.response?.data || err.message);
+      setError(err.response?.data?.message || err.message || 'Failed to load order details');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [orderId]);
 
+  // ==================== EVENT HANDLERS ====================
   useEffect(() => {
-    loadOrderDetails();
-  }, [loadOrderDetails]);
+    fetchOrderDetail();
+  }, [fetchOrderDetail]);
 
   const handleCancelOrder = async () => {
     if (!order) return;
@@ -108,14 +159,94 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ navigation }) => 
           onPress: async () => {
             try {
               setCancelling(true);
-              const updatedOrder = await cancelOrder(orderId);
-              setOrder(updatedOrder);
+              console.log('Cancelling order:', orderId);
+
+              const token = await AsyncStorage.getItem('@foodgo_token');
+              if (!token) {
+                throw new Error('No authentication token found');
+              }
+
+              const response = await axios.put(
+                `${API_BASE_URL}/orders/${orderId}/cancel`,
+                {},
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+
+              console.log('Order cancelled successfully');
+              setOrder(response.data.order);
               Alert.alert('Success', 'Order cancelled successfully');
             } catch (err: any) {
-              console.error('Error cancelling order:', err);
-              Alert.alert('Error', err.message || 'Failed to cancel order');
+              console.error('Error cancelling order:', err.response?.data || err.message);
+              Alert.alert(
+                'Error',
+                err.response?.data?.message || err.message || 'Failed to cancel order'
+              );
             } finally {
               setCancelling(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handlePayment = async (action: 'deliver' | 'cancel') => {
+    if (!order) return;
+
+    const title = action === 'deliver' ? 'Complete Payment' : 'Cancel Order';
+    const message = action === 'deliver' 
+      ? 'Confirm payment and mark order as delivered?' 
+      : 'Cancel this order and mark payment as failed?';
+    const confirmText = action === 'deliver' ? 'Pay & Deliver' : 'Cancel Order';
+
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: confirmText,
+          style: action === 'deliver' ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              setPaying(true);
+              console.log(`Processing payment for order ${orderId} with action:`, action);
+
+              const token = await AsyncStorage.getItem('@foodgo_token');
+              if (!token) {
+                throw new Error('No authentication token found');
+              }
+
+              const response = await axios.put(
+                `${API_BASE_URL}/orders/${orderId}/pay`,
+                { action },
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+
+              console.log('Payment processed successfully');
+              setOrder(response.data.order);
+              Alert.alert(
+                'Success', 
+                action === 'deliver' 
+                  ? 'Payment completed! Order has been delivered.' 
+                  : 'Order has been cancelled.'
+              );
+            } catch (err: any) {
+              console.error('Error processing payment:', err.response?.data || err.message);
+              Alert.alert(
+                'Error',
+                err.response?.data?.message || err.message || 'Failed to process payment'
+              );
+            } finally {
+              setPaying(false);
             }
           },
         },
@@ -136,7 +267,7 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ navigation }) => 
       <View style={styles.errorContainer}>
         <Icon name="alert-circle" size={64} color="#F44336" />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => loadOrderDetails(true)} style={styles.retryButton}>
+        <TouchableOpacity onPress={() => fetchOrderDetail(true)} style={styles.retryButton}>
           <Text style={styles.retryText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -148,7 +279,6 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ navigation }) => 
   const statusColor = STATUS_COLORS[order.status] || '#666666';
   const statusLabel = STATUS_LABELS[order.status] || 'Unknown';
   const statusIcon = STATUS_ICONS[order.status];
-  const canCancel = ['pending', 'confirmed'].includes(order.status);
 
   const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
     month: 'long',
@@ -167,7 +297,7 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ navigation }) => 
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => loadOrderDetails(true)}
+            onRefresh={() => fetchOrderDetail(true)}
             colors={['#FF6B6B']}
           />
         }
@@ -314,20 +444,35 @@ const OrderDetailScreen: React.FC<OrderDetailScreenProps> = ({ navigation }) => 
           </View>
         </View>
 
-        {/* Cancel Button */}
-        {canCancel && (
+        {/* Action Buttons */}
+        {order.status === 'preparing' && (
           <View style={styles.section}>
-            <Button
-              mode="outlined"
-              onPress={handleCancelOrder}
-              style={styles.cancelButton}
-              buttonColor="transparent"
-              textColor="#F44336"
-              loading={cancelling}
-              disabled={cancelling}
-            >
-              Cancel Order
-            </Button>
+            <Text style={styles.sectionTitle}>Payment</Text>
+            <View style={styles.buttonContainer}>
+              <Button
+                mode="contained"
+                onPress={() => handlePayment('deliver')}
+                style={styles.payButton}
+                buttonColor="#4CAF50"
+                loading={paying}
+                disabled={paying}
+                icon="check-circle"
+              >
+                Pay & Complete
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => handlePayment('cancel')}
+                style={styles.cancelPaymentButton}
+                buttonColor="transparent"
+                textColor="#F44336"
+                loading={paying}
+                disabled={paying}
+                icon="close-circle"
+              >
+                Cancel Order
+              </Button>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -407,10 +552,15 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     alignSelf: 'flex-start',
+    minHeight: 32,
+    justifyContent: 'center',
   },
   statusText: {
     fontSize: 14,
     fontWeight: '600',
+    lineHeight: 18,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   orderDateTime: {
     fontSize: 15,
@@ -547,6 +697,18 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#FF6B6B',
+  },
+  buttonContainer: {
+    gap: 12,
+  },
+  payButton: {
+    borderRadius: 12,
+    paddingVertical: 6,
+  },
+  cancelPaymentButton: {
+    borderRadius: 12,
+    borderColor: '#F44336',
+    borderWidth: 2,
   },
   cancelButton: {
     borderRadius: 12,

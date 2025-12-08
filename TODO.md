@@ -1,87 +1,112 @@
 # 📋 FoodGo - TODO List
 
-**Last Updated:** November 16, 2025  
-**Current Phase:** Week 7-8 Backend - COMPLETE ✅ | Moving to Week 7-8 Frontend
+**Last Updated:** November 29, 2025  
+**Current Phase:** Week 7-8 Frontend - COMPLETE ✅ | Moving to Week 9-10
 
 ---
 
-## 🔥 IMMEDIATE PRIORITIES (Week 7-8: Favorites & Reviews Frontend)
+## 🔥 IMMEDIATE PRIORITIES (Week 9-10: Notifications & Real-time)
 
 ### Backend Favorites & Reviews ✅ COMPLETE
-- [x] **Favorite Model & Endpoints** ✅
-  - [x] Create `backend/src/models/Favorite.js` ✅
-  - [x] POST `/api/favorites` - Add favorite ✅
-  - [x] GET `/api/favorites/my-favorites` - List favorites ✅
-  - [x] GET `/api/favorites/restaurants` - Restaurant favorites ✅
-  - [x] GET `/api/favorites/menu-items` - Menu item favorites ✅
-  - [x] GET `/api/favorites/check/:type/:id` - Check favorite status ✅
-  - [x] DELETE `/api/favorites/:favoriteId` - Remove by ID ✅
-  - [x] DELETE `/api/favorites/:type/:id` - Remove by type/ID ✅
-  - [x] Validators for all endpoints ✅
-  - [x] Test script (backend/scripts/test-favorites-reviews.js) - 13/13 tests passing ✅
-  
-- [x] **Review Model & Endpoints** ✅
-  - [x] Create `backend/src/models/Review.js` ✅
-  - [x] POST `/api/reviews` - Create review ✅
-  - [x] GET `/api/reviews/restaurant/:restaurantId` - Get restaurant reviews ✅
-  - [x] GET `/api/reviews/menu-item/:menuItemId` - Get menu item reviews ✅
-  - [x] GET `/api/reviews/my-reviews` - Get user's reviews ✅
-  - [x] PUT `/api/reviews/:reviewId` - Update review ✅
-  - [x] DELETE `/api/reviews/:reviewId` - Delete review ✅
-  - [x] GET `/api/reviews/restaurant/:restaurantId/stats` - Get rating stats ✅
-  - [x] Validators for all endpoints ✅
-  - [x] Average rating calculation with distribution ✅
 
-- [x] **Order Model Fix** ✅
-  - [x] Fixed schema alignment (subtotal, order_status, delivery_notes, etc.) ✅
-  - [x] Added order_number generation ✅
-  - [x] Fixed status field mapping for API consistency ✅
-  - [x] Test script (backend/scripts/test-orders.js) - 13/13 tests passing ✅
+### Frontend Favorites & Reviews ✅ COMPLETE
+- [x] **Favorite Service** ✅
+  - [x] Create `frontend/src/services/favoriteService.ts` ✅
+  - [x] addFavorite method ✅
+  - [x] removeFavorite method ✅
+  - [x] getMyFavorites method ✅
+  - [x] checkFavoriteStatus method ✅
+  - [x] toggleFavorite helper method ✅
+  - [x] Error handling ✅
+  
+- [x] **Review Service** ✅
+  - [x] Create `frontend/src/services/reviewService.ts` ✅
+  - [x] createReview method ✅
+  - [x] getRestaurantReviews method ✅
+  - [x] getMenuItemReviews method ✅
+  - [x] updateReview method ✅
+  - [x] deleteReview method ✅
+  - [x] getRatingStats method ✅
+  - [x] Error handling ✅
+  
+- [x] **Components** ✅
+  - [x] FavoriteButton component (heart icon toggle) ✅
+  - [x] ReviewCard component (display review with rating) ✅
+  - [x] ReviewForm component (submit/edit review) ✅
+  - [x] RatingStars component (star display) ✅
+  - [x] RatingDistribution component (stats visualization) ✅
+  
+- [x] **Favorites Screen** ✅
+  - [x] `frontend/src/screens/favorites/FavoritesScreen.tsx` ✅
+  - [x] Tabbed view (Restaurants / Menu Items) ✅
+  - [x] Favorite list with cards ✅
+  - [x] Remove favorite functionality ✅
+  - [x] Pull-to-refresh ✅
+  - [x] Empty state ✅
+  - [x] Navigation to details ✅
+  - [x] Added to MainNavigator with heart icon ✅
+  
+- [x] **Reviews Integration** ✅
+  - [x] Add review section to RestaurantDetailScreen ✅
+  - [x] Add favorite button to RestaurantCard ✅
+  - [x] Add favorite button to RestaurantDetailScreen ✅
+  - [x] Add favorite button to MenuItemCard ✅
+  - [x] Display average rating on restaurant cards ✅
+  - [x] Display rating distribution ✅
+  - [x] Review submission modal/screen ✅
+  - [x] Edit review functionality ✅
 
-### Frontend Favorites & Reviews - 🚧 IN PROGRESS
-- [ ] **Favorite Service**
-  - [ ] Create `frontend/src/services/favoriteService.ts`
-  - [ ] addFavorite method
-  - [ ] removeFavorite method
-  - [ ] getMyFavorites method
-  - [ ] checkFavoriteStatus method
-  - [ ] Error handling
+---
+
+## 🎯 NEXT PHASE (Week 9-10): Notifications & Real-time Tracking
+
+### Backend Real-time Features
+- [ ] **WebSocket/Socket.IO Setup**
+  - [ ] Install socket.io
+  - [ ] Configure Socket.IO server
+  - [ ] Authentication middleware for sockets
+  - [ ] Room management (user rooms, order rooms)
   
-- [ ] **Review Service**
-  - [ ] Create `frontend/src/services/reviewService.ts`
-  - [ ] createReview method
-  - [ ] getRestaurantReviews method
-  - [ ] getMenuItemReviews method
-  - [ ] updateReview method
-  - [ ] deleteReview method
-  - [ ] getRatingStats method
-  - [ ] Error handling
+- [ ] **Order Status Events**
+  - [ ] Emit events on order status changes
+  - [ ] Real-time order updates
+  - [ ] Delivery tracking events
+  - [ ] Order assignment to delivery driver
   
-- [ ] **Components**
-  - [ ] FavoriteButton component (heart icon toggle)
-  - [ ] ReviewCard component (display review with rating)
-  - [ ] ReviewForm component (submit/edit review)
-  - [ ] RatingStars component (star display)
-  - [ ] RatingDistribution component (stats visualization)
+- [ ] **Notification System**
+  - [ ] Notification model (database)
+  - [ ] Create notification on order events
+  - [ ] Mark notification as read
+  - [ ] Get user notifications
+  - [ ] Delete notifications
+
+### Frontend Real-time Features  
+- [ ] **Socket.IO Integration**
+  - [ ] Install @socket.io/client
+  - [ ] Create socket service
+  - [ ] Connect/disconnect logic
+  - [ ] Authentication with socket
   
-- [ ] **Favorites Screen**
-  - [ ] `frontend/src/screens/favorites/FavoritesScreen.tsx`
-  - [ ] Tabbed view (Restaurants / Menu Items)
-  - [ ] Favorite list with cards
-  - [ ] Remove favorite functionality
+- [ ] **Real-time Order Tracking**
+  - [ ] Listen to order status updates
+  - [ ] Update UI on status changes
+  - [ ] Show real-time progress
+  - [ ] Delivery driver location (if available)
+  
+- [ ] **Push Notifications**
+  - [ ] Install react-native-push-notification
+  - [ ] Configure Android/iOS permissions
+  - [ ] Handle notification display
+  - [ ] Navigate on notification tap
+  - [ ] Notification badge management
+  
+- [ ] **Notifications Screen**
+  - [ ] List all notifications
+  - [ ] Mark as read functionality
+  - [ ] Delete notifications
   - [ ] Pull-to-refresh
   - [ ] Empty state
-  - [ ] Navigation to details
-  
-- [ ] **Reviews Integration**
-  - [ ] Add review section to RestaurantDetailScreen
-  - [ ] Add favorite button to RestaurantCard
-  - [ ] Add favorite button to RestaurantDetailScreen
-  - [ ] Add favorite button to MenuItemCard
-  - [ ] Display average rating on restaurant cards
-  - [ ] Display rating distribution
-  - [ ] Review submission modal/screen
-  - [ ] Edit review functionality
+  - [ ] Navigate to related order/restaurant
 
 ---
 
@@ -199,6 +224,39 @@
 ---
 
 ## ✅ COMPLETED TASKS
+
+### November 29, 2025 - Week 7-8: Favorites & Reviews Frontend ✅ COMPLETE
+- [x] Favorite Service (frontend/src/services/favoriteService.ts - 244 lines)
+  - [x] addFavorite, removeFavorite, toggleFavorite methods
+  - [x] getMyFavorites, getRestaurantFavorites, getMenuItemFavorites
+  - [x] checkFavoriteStatus with caching support
+  - [x] Complete error handling
+- [x] Review Service (frontend/src/services/reviewService.ts - 217 lines)
+  - [x] createReview, updateReview, deleteReview methods
+  - [x] getRestaurantReviews, getMenuItemReviews, getMyReviews
+  - [x] getRestaurantRatingStats with distribution
+  - [x] Pagination support
+- [x] Components
+  - [x] FavoriteButton (heart icon with animated toggle)
+  - [x] ReviewCard (user review display with rating stars)
+  - [x] ReviewForm (modal form for submit/edit review)
+  - [x] RatingStars (star display component)
+  - [x] RatingDistribution (visual stats with bars)
+- [x] FavoritesScreen (frontend/src/screens/favorites/FavoritesScreen.tsx)
+  - [x] Tabbed view for Restaurants and Menu Items
+  - [x] Grid layout with favorite cards
+  - [x] Remove favorite with confirmation
+  - [x] Pull-to-refresh
+  - [x] Empty states
+  - [x] Navigation integration
+- [x] Integration & Navigation
+  - [x] Added FavoriteButton to RestaurantCard
+  - [x] Added FavoriteButton to RestaurantDetailScreen  
+  - [x] Added FavoriteButton to MenuItemCard
+  - [x] Added review section to RestaurantDetailScreen
+  - [x] Added rating display to restaurant cards
+  - [x] Added Favorites tab to MainNavigator
+  - [x] Updated navigation types
 
 ### November 16, 2025 - Week 7-8: Favorites & Reviews Backend ✅ COMPLETE
 - [x] Favorite Model (backend/src/models/Favorite.js - 230 lines)
@@ -498,18 +556,20 @@
 - Week 3: ✅ 100% Complete (Authentication - Backend & Frontend)
 - Week 4: ✅ 100% Complete (Restaurant & Menu - Backend & Frontend)
 - Week 5-6: ✅ 100% Complete (Cart & Orders - Backend & Frontend)
-- Week 7-8 Backend: ✅ 100% Complete (Favorites & Reviews Backend)
-- Week 7-8 Frontend: 🚧 0% Complete (Favorites & Reviews Frontend)
-- Overall: 🚧 41% Complete (6.5 of 16 weeks)
+- Week 7-8: ✅ 100% Complete (Favorites & Reviews - Backend & Frontend)
+- Week 9-10: 🚧 0% Complete (Notifications & Real-time)
+- Overall: 🚧 50% Complete (8 of 16 weeks)
 
-**Current Status:** Week 7-8 Backend Complete! Ready for Week 7-8 Frontend - Favorites & Reviews UI
+**Current Status:** Week 7-8 Complete! Ready for Week 9-10 - Notifications & Real-time Tracking
 
 **Next Actions:** 
-1. Create favoriteService.ts for favorite API integration
-2. Create reviewService.ts for review API integration
-3. Build FavoriteButton component with heart icon toggle
-4. Create ReviewCard and ReviewForm components
-5. Build FavoritesScreen with tabbed view
-6. Integrate favorites and reviews into existing screens
-7. Add rating display to restaurant cards
-8. Implement review submission flow
+1. Install socket.io for backend real-time communication
+2. Configure WebSocket server with authentication
+3. Implement order status event emissions
+4. Create notification model and endpoints
+5. Install @socket.io/client for frontend
+6. Create socket service for real-time updates
+7. Implement push notifications (react-native-push-notification)
+8. Build NotificationsScreen
+9. Add real-time order tracking to OrderDetailScreen
+10. Test real-time features end-to-end

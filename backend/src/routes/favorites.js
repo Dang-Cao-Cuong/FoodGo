@@ -7,6 +7,9 @@ const { addFavoriteValidator, validate } = require('../validators/favoriteValida
 // All routes require authentication
 router.use(authenticate);
 
+// Toggle favorite (add/remove)
+router.post('/toggle', favoriteController.toggleFavorite);
+
 // Add favorite
 router.post('/', addFavoriteValidator, validate, favoriteController.addFavorite);
 

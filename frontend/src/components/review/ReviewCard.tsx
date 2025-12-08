@@ -2,7 +2,17 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Text, Avatar } from 'react-native-paper';
 import RatingStars from '../common/RatingStars';
-import { Review } from '../../services/reviewService';
+
+interface Review {
+  id: number;
+  rating: number;
+  comment?: string;
+  user_name?: string;
+  restaurant_name?: string;
+  menu_item_name?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface ReviewCardProps {
   review: Review;

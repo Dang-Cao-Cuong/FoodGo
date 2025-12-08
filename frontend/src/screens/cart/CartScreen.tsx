@@ -134,7 +134,6 @@ const CartScreen: React.FC<CartScreenProps> = ({ navigation }) => {
         data={cartItems}
         renderItem={renderCartItem}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderHeader}
         ListFooterComponent={renderSummary}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}

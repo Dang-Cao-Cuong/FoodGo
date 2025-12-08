@@ -17,6 +17,12 @@ router.get(
   menuItemController.getMenuItems
 );
 
+// Get menu items by restaurant ID
+router.get(
+  '/restaurant/:id',
+  menuItemController.getMenuItems
+);
+
 router.get(
   '/:id',
   getMenuItemByIdValidator,

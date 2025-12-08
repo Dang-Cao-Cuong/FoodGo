@@ -1,12 +1,43 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MenuItem } from '../services/menuItemService';
-import { Restaurant } from '../services/restaurantService';
 
 const CART_STORAGE_KEY = '@foodgo_cart';
 
+// MenuItem Interface: Định nghĩa cấu trúc dữ liệu của một món ăn
+export interface MenuItem {
+  id: number;
+  restaurant_id: number;
+  name: string;
+  description?: string;
+  price: number;
+  discounted_price?: number;
+  image_url?: string;
+  category?: string;
+  is_available: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Restaurant Interface: Định nghĩa thông tin nhà hàng
+export interface Restaurant {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  address: string;
+  phone?: string;
+  cover_url?: string;
+  logo_url?: string;
+  is_open: boolean;
+  rating?: number;
+  category?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// CartItem Interface: Một món ăn đã được thêm vào giỏ (kèm số lượng, ghi chú)
 export interface CartItem {
-  id: string; // Unique cart item ID (menuItemId-restaurantId)
+  id: string; // ID duy nhất trong giỏ = menuItemId + restaurantId
   menuItem: MenuItem;
   restaurant: Restaurant;
   quantity: number;
@@ -21,7 +52,7 @@ interface CartContextType {
   deliveryFee: number;
   total: number;
   restaurantId: number | null;
-  addToCart: (menuItem: MenuItem, restaurant: Restaurant, quantity?: number, notes?: string) => void;
+  addToCart: (menuItem: MenuItem, restaurant: Restaurant, quantity?: number, notes?: string, forceNewOrder?: boolean) => { success: boolean; error?: 'mismatch' };
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   updateNotes: (itemId: string, notes: string) => void;
@@ -88,54 +119,67 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     }
   };
 
-  // Calculate subtotal
+  // --- Tính toán tiền nong ---
+
+  // Tính tổng tiền hàng (Subtotal)
   const subtotal = cartItems.reduce((sum, item) => {
     const price = item.menuItem.discounted_price || item.menuItem.price;
     return sum + price * item.quantity;
   }, 0);
 
-  // Calculate tax
+  // Tính thuế
   const tax = subtotal * TAX_RATE;
 
-  // Get delivery fee from restaurant
+  // Phí vận chuyển (Hiện tại hardcode = 0, sau này có thể tính theo khoảng cách)
   const deliveryFee = cartItems.length > 0 && cartItems[0].restaurant
-    ? 0 // Default to 0 since restaurant model doesn't have delivery_fee
+    ? 0
     : 0;
 
-  // Calculate total
+  // Tổng thanh toán
   const total = subtotal + tax + deliveryFee;
 
-  // Get total item count
+  // Tổng số item hiển thị trên badge
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Add item to cart
+  // --- Logic thêm vào giỏ hàng ---
+  // addToCart trả về object { success, error } để UI xử lý hiển thị popup nếu cần
   const addToCart = (
     menuItem: MenuItem,
     restaurant: Restaurant,
     quantity: number = 1,
-    notes?: string
-  ) => {
-    // Check if cart is empty or from same restaurant
+    notes?: string,
+    forceNewOrder: boolean = false
+  ): { success: boolean; error?: 'mismatch' } => {
+    // 1. Kiểm tra nhà hàng: FoodGo chỉ cho phép đặt món từ 1 nhà hàng cùng lúc
     if (cartItems.length > 0 && restaurantId !== restaurant.id) {
-      // Alert user that cart will be cleared
-      // In a real app, you'd use a modal/alert
-      console.warn('Cart contains items from a different restaurant. Clearing cart...');
-      clearCart();
+      if (forceNewOrder) {
+        // Nếu user đồng ý tạo đơn mới -> Xóa hết giỏ cũ
+        clearCart();
+        // (Lưu ý: State update là bất đồng bộ, nên ta cần xử lý logic thêm mới cẩn thận ở dưới)
+      } else {
+        return { success: false, error: 'mismatch' };
+      }
     }
 
     const itemId = `${menuItem.id}-${restaurant.id}`;
     const existingItemIndex = cartItems.findIndex(item => item.id === itemId);
 
-    if (existingItemIndex >= 0) {
+    // If we are forcing a new order, we know cartItems will be empty effectively, 
+    // but React state updates are batched. 
+    // If NOT forcing, we use existing cartItems.
+    // If forcing, we should treat it as empty.
+
+    let currentItems = forceNewOrder ? [] : [...cartItems];
+
+    if (!forceNewOrder && existingItemIndex >= 0) {
       // Update quantity of existing item
-      const updatedItems = [...cartItems];
-      updatedItems[existingItemIndex].quantity += quantity;
+      currentItems[existingItemIndex].quantity += quantity;
       if (notes) {
-        updatedItems[existingItemIndex].notes = notes;
+        currentItems[existingItemIndex].notes = notes;
       }
-      setCartItems(updatedItems);
+      setCartItems(currentItems);
     } else {
-      // Add new item
+      // 2B. Nếu item mới -> Thêm object mới vào mảng
       const newItem: CartItem = {
         id: itemId,
         menuItem,
@@ -143,16 +187,24 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         quantity,
         notes,
       };
-      setCartItems([...cartItems, newItem]);
-      setRestaurantId(restaurant.id);
+      // Nếu forceNewOrder -> Reset giỏ chỉ còn item mới
+      // Nếu không -> Nối vào giỏ cũ
+      if (forceNewOrder) {
+        setCartItems([newItem]);
+      } else {
+        setCartItems([...currentItems, newItem]);
+      }
+      setRestaurantId(restaurant.id); // Cập nhật ID nhà hàng hiện tại
     }
+
+    return { success: true };
   };
 
   // Remove item from cart
   const removeFromCart = (itemId: string) => {
     const updatedItems = cartItems.filter(item => item.id !== itemId);
     setCartItems(updatedItems);
-    
+
     // Clear restaurant ID if cart is empty
     if (updatedItems.length === 0) {
       setRestaurantId(null);

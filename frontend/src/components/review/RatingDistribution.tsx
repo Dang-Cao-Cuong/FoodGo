@@ -1,18 +1,44 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, ProgressBar } from 'react-native-paper';
-import { RatingStats } from '../../services/reviewService';
 import RatingStars from '../common/RatingStars';
+
+// RatingStats Interface
+export interface RatingStats {
+  average_rating: number;
+  review_count: number;
+  rating_distribution: {
+    five_star: number;
+    four_star: number;
+    three_star: number;
+    two_star: number;
+    one_star: number;
+  };
+}
 
 interface RatingDistributionProps {
   stats: RatingStats;
 }
 
 const RatingDistribution: React.FC<RatingDistributionProps> = ({ stats }) => {
-  const { average_rating, review_count, rating_distribution } = stats;
+  // Safely extract values with proper type checking
+  const average_rating = stats?.average_rating;
+  const review_count = stats?.review_count;
+  const rating_distribution = stats?.rating_distribution;
+
+  // Handle cases where rating data might be incomplete
+  const avgRating = typeof average_rating === 'number' ? average_rating : parseFloat(average_rating as any) || 0;
+  const totalReviews = typeof review_count === 'number' ? review_count : parseInt(review_count as any) || 0;
+  const distribution = rating_distribution || {
+    five_star: 0,
+    four_star: 0,
+    three_star: 0,
+    two_star: 0,
+    one_star: 0,
+  };
 
   const renderDistributionBar = (stars: number, count: number) => {
-    const percentage = review_count > 0 ? count / review_count : 0;
+    const percentage = totalReviews > 0 ? count / totalReviews : 0;
 
     return (
       <View key={stars} style={styles.barRow}>
@@ -36,20 +62,20 @@ const RatingDistribution: React.FC<RatingDistributionProps> = ({ stats }) => {
       <View style={styles.summaryRow}>
         <View style={styles.averageContainer}>
           <Text variant="displaySmall" style={styles.averageRating}>
-            {average_rating.toFixed(1)}
+            {avgRating.toFixed(1)}
           </Text>
-          <RatingStars rating={average_rating} size={20} />
+          <RatingStars rating={avgRating} size={20} />
           <Text variant="bodySmall" style={styles.reviewCount}>
-            {review_count} {review_count === 1 ? 'review' : 'reviews'}
+            {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
           </Text>
         </View>
 
         <View style={styles.distributionContainer}>
-          {renderDistributionBar(5, rating_distribution.five_star)}
-          {renderDistributionBar(4, rating_distribution.four_star)}
-          {renderDistributionBar(3, rating_distribution.three_star)}
-          {renderDistributionBar(2, rating_distribution.two_star)}
-          {renderDistributionBar(1, rating_distribution.one_star)}
+          {renderDistributionBar(5, distribution.five_star)}
+          {renderDistributionBar(4, distribution.four_star)}
+          {renderDistributionBar(3, distribution.three_star)}
+          {renderDistributionBar(2, distribution.two_star)}
+          {renderDistributionBar(1, distribution.one_star)}
         </View>
       </View>
     </View>

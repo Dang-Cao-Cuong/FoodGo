@@ -9,7 +9,16 @@ const register = catchAsync(async (req, res) => {
   // Check if email already exists
   const emailExists = await User.emailExists(email);
   if (emailExists) {
-    throw new AppError('Email already registered', 400);
+    return res.status(400).json({
+      success: false,
+      status: 'fail',
+      message: 'Email already registered',
+      error: {
+        statusCode: 400,
+        status: 'fail',
+        isOperational: true
+      }
+    });
   }
 
   // Create user

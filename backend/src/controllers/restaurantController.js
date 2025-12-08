@@ -7,9 +7,14 @@ const { validationResult } = require('express-validator');
  * @route   GET /api/restaurants
  * @access  Public
  */
+/**
+ * @desc    Lấy danh sách nhà hàng (có hỗ trợ tìm kiếm và lọc)
+ * @route   GET /api/restaurants
+ * @access  Public
+ */
 exports.getRestaurants = async (req, res, next) => {
   try {
-    // Validate request
+    // 1. Validate request (kiểm tra đầu vào nếu có rule validate)
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -20,8 +25,14 @@ exports.getRestaurants = async (req, res, next) => {
       });
     }
 
+    // 2. Lấy tham số từ URL Query String
+    // q: Từ khóa tìm kiếm (tên, mô tả)
+    // categoryId: Lọc theo danh mục
+    // limit: Số lượng bản ghi tối đa (mặc định 20)
+    // offset: Vị trí bắt đầu lấy (dùng cho phân trang)
     const { q, categoryId, limit = 20, offset = 0 } = req.query;
     
+    // 3. Gọi Model để truy vấn Database
     const restaurants = await Restaurant.findAll({
       q,
       categoryId,
@@ -29,17 +40,18 @@ exports.getRestaurants = async (req, res, next) => {
       offset: parseInt(offset),
     });
 
+    // 4. Trả về kết quả JSON chuẩn
     res.status(200).json({
       success: true,
       data: {
         restaurants,
-        count: restaurants.length,
+        count: restaurants.length, // Số lượng bản ghi trả về trong request này
         limit: parseInt(limit),
         offset: parseInt(offset),
       },
     });
   } catch (error) {
-    next(error);
+    next(error); // Chuyển lỗi sang middleware xử lý lỗi chung
   }
 };
 

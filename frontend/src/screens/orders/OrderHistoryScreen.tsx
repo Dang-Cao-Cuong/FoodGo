@@ -9,12 +9,43 @@ import {
   ActivityIndicator,
   SafeAreaView,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Chip } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { getMyOrders, Order } from '../../services/orderService';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MainStackParamList } from '../../navigation/types';
+
+// ==================== API CONFIGURATION ====================
+const getBaseURL = () => {
+  if (__DEV__) {
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:3000/api';
+    }
+    return 'http://localhost:3000/api';
+  }
+  return 'https://your-production-api.com/api';
+};
+
+const API_BASE_URL = getBaseURL();
+
+// ==================== INTERFACES ====================
+interface Order {
+  id: number;
+  user_id: number;
+  restaurant_id: number;
+  restaurant_name: string;
+  status: 'preparing' | 'delivered' | 'cancelled';
+  total_amount: number;
+  delivery_address: string;
+  delivery_phone: string;
+  notes?: string;
+  item_count: number;
+  created_at: string;
+  updated_at: string;
+}
 
 type OrderHistoryScreenNavigationProp = NativeStackNavigationProp<MainStackParamList, 'OrderHistory'>;
 
@@ -23,21 +54,13 @@ interface OrderHistoryScreenProps {
 }
 
 const STATUS_COLORS: Record<Order['status'], string> = {
-  pending: '#FFC107',
-  confirmed: '#2196F3',
   preparing: '#9C27B0',
-  ready: '#4CAF50',
-  out_for_delivery: '#00BCD4',
   delivered: '#4CAF50',
   cancelled: '#F44336',
 };
 
 const STATUS_LABELS: Record<Order['status'], string> = {
-  pending: 'Pending',
-  confirmed: 'Confirmed',
   preparing: 'Preparing',
-  ready: 'Ready',
-  out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
@@ -49,7 +72,8 @@ const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({ navigation }) =
   const [error, setError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
-  const loadOrders = useCallback(async (isRefresh = false) => {
+  // ==================== API FUNCTIONS ====================
+  const fetchOrders = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -58,21 +82,41 @@ const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({ navigation }) =
       }
       setError(null);
 
-      const params = selectedStatus ? { status: selectedStatus } : {};
-      const ordersData = await getMyOrders(params);
-      setOrders(ordersData);
+      console.log('Fetching orders with status:', selectedStatus || 'all');
+
+      const token = await AsyncStorage.getItem('@foodgo_token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const params: any = {};
+      if (selectedStatus) {
+        params.status = selectedStatus;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/orders/my-orders`, {
+        params,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Backend returns: { orders, pagination } (no nested data)
+      console.log('Orders loaded:', response.data.orders?.length || 0);
+      setOrders(response.data.orders || []);
     } catch (err: any) {
-      console.error('Error loading orders:', err);
-      setError(err.message || 'Failed to load orders');
+      console.error('Error loading orders:', err.response?.data || err.message);
+      setError(err.response?.data?.message || err.message || 'Failed to load orders');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [selectedStatus]);
 
+  // ==================== EVENT HANDLERS ====================
   useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+    fetchOrders();
+  }, [fetchOrders]);
 
   const handleOrderPress = (orderId: number) => {
     navigation.navigate('OrderDetail', { orderId });
@@ -201,7 +245,7 @@ const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({ navigation }) =
       <View style={styles.errorContainer}>
         <Icon name="alert-circle" size={64} color="#F44336" />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => loadOrders(true)} style={styles.retryButton}>
+        <TouchableOpacity onPress={() => fetchOrders(true)} style={styles.retryButton}>
           <Text style={styles.retryText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -219,7 +263,7 @@ const OrderHistoryScreen: React.FC<OrderHistoryScreenProps> = ({ navigation }) =
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => loadOrders(true)}
+            onRefresh={() => fetchOrders(true)}
             colors={['#FF6B6B']}
           />
         }
@@ -329,11 +373,16 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   statusChip: {
-    height: 28,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusText: {
     fontSize: 12,
     fontWeight: '600',
+    lineHeight: 16,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   restaurantInfo: {
     flexDirection: 'row',

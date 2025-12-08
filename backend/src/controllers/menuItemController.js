@@ -6,9 +6,10 @@ const { AppError } = require('../middleware/errorHandler');
 exports.getMenuItems = async (req, res, next) => {
   try {
     const { restaurantId, category, q, isAvailable, isFeatured, limit, offset } = req.query;
+    const { id: restaurantIdFromParams } = req.params;
 
     const options = {
-      restaurantId: restaurantId ? parseInt(restaurantId, 10) : undefined,
+      restaurantId: restaurantIdFromParams ? parseInt(restaurantIdFromParams, 10) : (restaurantId ? parseInt(restaurantId, 10) : undefined),
       category,
       q,
       isAvailable: isAvailable !== undefined ? isAvailable === 'true' : undefined,

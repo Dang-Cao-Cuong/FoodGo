@@ -1,13 +1,44 @@
 import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Card } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { MenuItem } from '../../services/menuItemService';
-import { Restaurant } from '../../services/restaurantService';
 import AddToCartModal from '../cart/AddToCartModal';
 import { useCart } from '../../contexts/CartContext';
 import FavoriteButton from '../common/FavoriteButton';
 import { getImageFromPath } from '../../assets/images';
+
+interface MenuItem {
+  id: number;
+  restaurant_id: number;
+  name: string;
+  description?: string;
+  price: number;
+  discounted_price?: number;
+  image_url?: string;
+  is_available: boolean;
+  is_featured?: boolean;
+  preparation_time?: number;
+  average_rating?: number;
+  total_reviews?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Restaurant {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  address: string;
+  phone?: string;
+  cover_url?: string;
+  logo_url?: string;
+  is_open: boolean;
+  rating?: number;
+  category?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface MenuItemCardProps {
   menuItem: MenuItem;
@@ -18,13 +49,13 @@ interface MenuItemCardProps {
 const MenuItemCard: React.FC<MenuItemCardProps> = ({ menuItem, restaurant, onPress }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const { addToCart } = useCart();
-  
+
   // Load ảnh từ đường dẫn trong database
   const localImage = getImageFromPath(menuItem.image_url || null);
-  const imageSource = localImage 
-    ? localImage 
+  const imageSource = localImage
+    ? localImage
     : { uri: menuItem.image_url || 'https://via.placeholder.com/150x150?text=Menu+Item' };
-    
+
   // Ensure price is a valid number
   const price = typeof menuItem.price === 'number' ? menuItem.price : 0;
   const discountedPrice = typeof menuItem.discounted_price === 'number' ? menuItem.discounted_price : 0;
@@ -42,9 +73,41 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({ menuItem, restaurant, onPre
     }
   };
 
+  // Hàm xử lý khi bấm nút "Add to Cart"
   const handleAddToCart = (quantity: number, notes: string) => {
-    addToCart(menuItem, restaurant, quantity, notes);
-    setModalVisible(false);
+    // Gọi hàm addToCart từ Context
+    const result = addToCart(menuItem, restaurant, quantity, notes);
+
+    // Kiểm tra kết quả trả về
+    if (!result.success && result.error === 'mismatch') {
+      // Trường hợp 1: Giỏ hàng đang chứa món của nhà hàng khác
+      // -> Hiện thông báo hỏi User có muốn xóa giỏ cũ để tạo đơn mới không
+      Alert.alert(
+        'Start new order?',
+        `Your cart contains items from another restaurant. Do you want to clear your cart and start a new order from ${restaurant.name}?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => {
+              // User chọn "Hủy" -> Giữ nguyên giỏ hàng cũ, không làm gì cả
+            }
+          },
+          {
+            text: 'New Order',
+            style: 'destructive',
+            onPress: () => {
+              // User chọn "Tạo đơn mới" -> Gọi lại addToCart với cờ forceNewOrder=true
+              addToCart(menuItem, restaurant, quantity, notes, true);
+              setModalVisible(false); // Đóng modal chọn số lượng
+            },
+          },
+        ]
+      );
+    } else {
+      // Trường hợp 2: Thêm thành công (cùng nhà hàng hoặc giỏ rỗng)
+      setModalVisible(false);
+    }
   };
 
   return (
@@ -74,14 +137,14 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({ menuItem, restaurant, onPre
               )}
 
               {/* Rating & Reviews */}
-              {menuItem.total_reviews > 0 && menuItem.average_rating && (
+              {(menuItem.total_reviews || 0) > 0 && (menuItem.average_rating || 0) > 0 && (
                 <View style={styles.ratingContainer}>
                   <Icon name="star" size={16} color="#FFC107" />
                   <Text style={styles.ratingText}>
                     {Number(menuItem.average_rating).toFixed(1)}
                   </Text>
                   <Text style={styles.reviewCount}>
-                    ({menuItem.total_reviews})
+                    ({Number(menuItem.total_reviews)})
                   </Text>
                 </View>
               )}
@@ -91,21 +154,21 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({ menuItem, restaurant, onPre
                 {/* Price */}
                 <View style={styles.priceContainer}>
                   <Text style={styles.price}>
-                    ${displayPrice.toFixed(2)}
+                    ${String(displayPrice.toFixed(2))}
                   </Text>
                   {hasDiscount && (
                     <Text style={styles.originalPrice}>
-                      ${price.toFixed(2)}
+                      ${String(price.toFixed(2))}
                     </Text>
                   )}
                 </View>
 
                 {/* Preparation Time */}
-                {menuItem.preparation_time && (
+                {(menuItem.preparation_time || 0) > 0 && (
                   <View style={styles.prepTimeContainer}>
                     <Icon name="clock-outline" size={14} color="#666" />
                     <Text style={styles.prepTime}>
-                      {menuItem.preparation_time} min
+                      {String(menuItem.preparation_time)} min
                     </Text>
                   </View>
                 )}
@@ -134,7 +197,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({ menuItem, restaurant, onPre
           {hasDiscount && price > 0 && (
             <View style={styles.discountBadge}>
               <Text style={styles.discountText}>
-                {Math.round(((price - displayPrice) / price) * 100)}% OFF
+                {String(Math.round(((price - displayPrice) / price) * 100))}% OFF
               </Text>
             </View>
           )}
@@ -218,7 +281,6 @@ const styles = StyleSheet.create({
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   price: {
     fontSize: 18,
@@ -229,21 +291,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     textDecorationLine: 'line-through',
+    marginLeft: 8,
   },
   prepTimeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
   prepTime: {
     fontSize: 12,
     color: '#666',
+    marginLeft: 4,
   },
   badgesContainer: {
     position: 'absolute',
     top: 8,
     left: 8,
-    gap: 6,
   },
   featuredBadge: {
     flexDirection: 'row',
@@ -252,12 +314,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    gap: 4,
+    marginBottom: 6,
   },
   featuredText: {
     fontSize: 10,
     fontWeight: 'bold',
     color: '#fff',
+    marginLeft: 4,
   },
   unavailableBadge: {
     backgroundColor: '#999',

@@ -40,8 +40,6 @@ class Order {
       deliveryFee = 0,
       taxAmount = 0,
       subtotalAmount,
-      couponCode = null,
-      discountAmount = 0,
       paymentMethod = 'cash',
       items,
     } = orderData;
@@ -54,14 +52,14 @@ class Order {
       try {
         const orderNumber = this.generateOrderNumber();
 
-        // Insert order with 'delivered' status
+        // Insert order with 'preparing' status
         const [orderResult] = await connection.execute(
           `INSERT INTO orders (
             order_number, user_id, restaurant_id, delivery_address, 
             delivery_phone, delivery_notes, subtotal, delivery_fee, 
-            tax_amount, discount_amount, total_amount, coupon_code, 
-            payment_method, order_status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            tax_amount, total_amount, 
+            payment_method, order_status, payment_status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             orderNumber,
             userId,
@@ -72,11 +70,10 @@ class Order {
             subtotalAmount,
             deliveryFee,
             taxAmount,
-            discountAmount,
             totalAmount,
-            couponCode,
             paymentMethod,
-            'delivered',
+            'preparing',
+            'pending',
           ]
         );
 
@@ -255,7 +252,7 @@ class Order {
   static async updateStatus(orderId, status, userId = null) {
     try {
       // Validate status
-      const validStatuses = ['placed', 'confirmed', 'preparing', 'ready', 'delivering', 'delivered', 'cancelled'];
+      const validStatuses = ['preparing', 'delivered', 'cancelled'];
       if (!validStatuses.includes(status)) {
         throw new Error('Invalid order status');
       }
@@ -302,7 +299,7 @@ class Order {
       }
 
       const order = orders[0];
-      if (!['placed', 'confirmed'].includes(order.order_status)) {
+      if (order.order_status !== 'preparing') {
         throw new Error('Order cannot be cancelled');
       }
 
@@ -320,7 +317,7 @@ class Order {
           COUNT(*) as total_orders,
           SUM(CASE WHEN order_status = 'delivered' THEN 1 ELSE 0 END) as completed_orders,
           SUM(CASE WHEN order_status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_orders,
-          SUM(CASE WHEN order_status IN ('placed', 'confirmed', 'preparing', 'ready', 'delivering') THEN 1 ELSE 0 END) as active_orders,
+          SUM(CASE WHEN order_status = 'preparing' THEN 1 ELSE 0 END) as active_orders,
           COALESCE(SUM(CASE WHEN order_status = 'delivered' THEN total_amount ELSE 0 END), 0) as total_spent
         FROM orders
         WHERE user_id = ?`,
@@ -330,6 +327,66 @@ class Order {
       return stats[0];
     } catch (error) {
       throw new Error(`Error getting user stats: ${error.message}`);
+    }
+  }
+
+  // Pay for order and update status
+  static async payOrder(orderId, userId, action) {
+    try {
+      // Verify order belongs to user and is in preparing status
+      const [orders] = await db.pool.execute(
+        'SELECT order_status, payment_status FROM orders WHERE id = ? AND user_id = ?',
+        [orderId, userId]
+      );
+
+      if (orders.length === 0) {
+        throw new Error('Order not found');
+      }
+
+      const order = orders[0];
+      if (order.order_status !== 'preparing') {
+        throw new Error('Order cannot be paid - invalid status');
+      }
+
+      if (order.payment_status !== 'pending') {
+        throw new Error('Order has already been paid');
+      }
+
+      // Determine new status based on action
+      let newStatus = 'delivered';
+      let paymentStatus = 'paid';
+      
+      if (action === 'cancel') {
+        newStatus = 'cancelled';
+        paymentStatus = 'failed';
+      }
+
+      // Update order
+      const [result] = await db.pool.execute(
+        `UPDATE orders 
+         SET order_status = ?, 
+             payment_status = ?, 
+             delivered_at = ?, 
+             cancelled_at = ?,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [
+          newStatus,
+          paymentStatus,
+          action === 'deliver' ? new Date() : null,
+          action === 'cancel' ? new Date() : null,
+          orderId,
+        ]
+      );
+
+      if (result.affectedRows === 0) {
+        throw new Error('Failed to update order');
+      }
+
+      const updatedOrder = await this.findById(orderId);
+      return this.normalizeOrder(updatedOrder);
+    } catch (error) {
+      throw new Error(`Error paying for order: ${error.message}`);
     }
   }
 }

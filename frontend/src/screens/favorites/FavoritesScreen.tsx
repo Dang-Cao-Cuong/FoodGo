@@ -6,12 +6,57 @@ import {
   RefreshControl,
   TouchableOpacity,
   Image,
+  Platform,
 } from 'react-native';
 import { Text, ActivityIndicator, Chip, Card, IconButton, Button } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import favoriteService, { Favorite } from '../../services/favoriteService';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import RatingStars from '../../components/common/RatingStars';
 import { useAuth } from '../../contexts/AuthContext';
+import { getImageFromPath } from '../../assets/images';
+
+// ==================== API CONFIGURATION ====================
+const getBaseURL = () => {
+  if (__DEV__) {
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:3000/api';
+    }
+    return 'http://localhost:3000/api';
+  }
+  return 'https://your-production-api.com/api';
+};
+
+const API_BASE_URL = getBaseURL();
+
+// ==================== INTERFACES ====================
+interface Restaurant {
+  id: number;
+  name: string;
+  description: string;
+  address: string;
+  cover_url: string;
+  rating: number;
+}
+
+interface MenuItem {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+}
+
+interface Favorite {
+  id: number;
+  user_id: number;
+  favorite_type: 'restaurant' | 'menu_item';
+  restaurant_id?: number;
+  menu_item_id?: number;
+  restaurant?: Restaurant;
+  menu_item?: MenuItem;
+  created_at: string;
+}
 
 type FavoriteType = 'all' | 'restaurant' | 'menu_item';
 
@@ -42,15 +87,35 @@ const FavoritesScreen: React.FC = () => {
     try {
       setLoading(true);
       setError('');
+      console.log('Loading favorites, tab:', activeTab);
 
-      const options = activeTab !== 'all' ? { type: activeTab } : undefined;
-      const response = await favoriteService.getMyFavorites(options);
-      setFavorites(response.data.favorites);
+      const token = await AsyncStorage.getItem('@foodgo_token');
+      if (!token) {
+        setError('Please login to view favorites');
+        setLoading(false);
+        return;
+      }
+
+      const params: any = {};
+      if (activeTab !== 'all') {
+        params.type = activeTab;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/favorites/my-favorites`, {
+        params,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      console.log('Favorites loaded:', response.data.data.favorites.length);
+      setFavorites(response.data.data.favorites);
     } catch (err: any) {
-      if (err.message?.includes('Authentication') || err.message?.includes('authentication')) {
+      console.error('Error loading favorites:', err.response?.data || err.message);
+      if (err.response?.status === 401 || err.message?.includes('authentication')) {
         setError('Please login to view favorites');
       } else {
-        setError(err.message || 'Failed to load favorites');
+        setError(err.response?.data?.message || err.message || 'Failed to load favorites');
       }
     } finally {
       setLoading(false);
@@ -65,10 +130,24 @@ const FavoritesScreen: React.FC = () => {
 
   const handleRemoveFavorite = async (favoriteId: number) => {
     try {
-      await favoriteService.removeFavorite(favoriteId);
+      console.log('Removing favorite:', favoriteId);
+
+      const token = await AsyncStorage.getItem('@foodgo_token');
+      if (!token) {
+        setError('Please login to remove favorites');
+        return;
+      }
+
+      await axios.delete(`${API_BASE_URL}/favorites/${favoriteId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      console.log('Favorite removed successfully');
       setFavorites((prev) => prev.filter((fav) => fav.id !== favoriteId));
     } catch (err: any) {
-      console.error('Error removing favorite:', err);
+      console.error('Error removing favorite:', err.response?.data || err.message);
     }
   };
 
@@ -85,17 +164,29 @@ const FavoritesScreen: React.FC = () => {
 
     if (!data) return null;
 
+    // Load image from local assets
+    const imageUrl = isRestaurant
+      ? (data as any).cover_url || null
+      : (data as any).image_url || null;
+    
+    const localImage = getImageFromPath(imageUrl);
+    const imageSource = localImage 
+      ? localImage 
+      : { uri: imageUrl || 'https://via.placeholder.com/100' };
+
+    // Ensure price is a number
+    const price = typeof (data as any).price === 'number' 
+      ? (data as any).price 
+      : parseFloat((data as any).price) || 0;
+
     return (
       <Card style={styles.card} mode="outlined">
         <TouchableOpacity onPress={() => handleFavoritePress(item)} activeOpacity={0.7}>
           <View style={styles.cardContent}>
             <Image
-              source={{
-                uri: isRestaurant
-                  ? (data as any).cover_url || 'https://via.placeholder.com/100'
-                  : (data as any).image_url || 'https://via.placeholder.com/100',
-              }}
+              source={imageSource}
               style={styles.image}
+              resizeMode="cover"
             />
 
             <View style={styles.info}>
@@ -125,7 +216,7 @@ const FavoritesScreen: React.FC = () => {
                 </>
               ) : (
                 <Text variant="titleMedium" style={styles.price}>
-                  ${((data as any).price || 0).toFixed(2)}
+                  ${price.toFixed(2)}
                 </Text>
               )}
             </View>

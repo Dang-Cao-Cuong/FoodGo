@@ -152,3 +152,43 @@ exports.getMenuItemFavorites = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Toggle favorite (add if not exists, remove if exists)
+ */
+exports.toggleFavorite = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { type, item_id } = req.body;
+
+    if (!type || !item_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'type and item_id are required',
+      });
+    }
+
+    // Check if already favorited
+    const isFavorite = await Favorite.isFavorite(userId, type, item_id);
+
+    if (isFavorite) {
+      // Remove from favorites
+      await Favorite.removeFavoriteByTypeAndId(userId, type, item_id);
+      return res.status(200).json({
+        success: true,
+        message: 'Removed from favorites',
+        isFavorited: false,
+      });
+    } else {
+      // Add to favorites
+      await Favorite.addFavorite(userId, type, item_id);
+      return res.status(200).json({
+        success: true,
+        message: 'Added to favorites',
+        isFavorited: true,
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};

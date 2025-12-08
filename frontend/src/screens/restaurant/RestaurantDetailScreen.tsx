@@ -9,21 +9,88 @@ import {
   RefreshControl,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Button } from 'react-native-paper';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MenuItemCard from '../../components/restaurant/MenuItemCard';
 import FavoriteButton from '../../components/common/FavoriteButton';
 import RatingDistribution from '../../components/review/RatingDistribution';
 import ReviewCard from '../../components/review/ReviewCard';
 import ReviewForm from '../../components/review/ReviewForm';
-import restaurantService, { Restaurant } from '../../services/restaurantService';
-import menuItemService, { MenuItem } from '../../services/menuItemService';
-import reviewService, { Review, RatingStats } from '../../services/reviewService';
 import { getImageFromPath } from '../../assets/images';
 import { useAuth } from '../../contexts/AuthContext';
+
+// ==================== API CONFIGURATION ====================
+const getBaseURL = () => {
+  if (__DEV__) {
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:3000/api';
+    }
+    return 'http://localhost:3000/api';
+  }
+  return 'https://your-production-api.com/api';
+};
+
+const API_BASE_URL = getBaseURL();
+
+// ==================== INTERFACES ====================
+interface Restaurant {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  address: string;
+  phone: string;
+  cover_url: string;
+  logo_url: string;
+  is_open: boolean;
+  rating: number;
+  category: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MenuItem {
+  id: number;
+  restaurant_id: number;
+  name: string;
+  slug: string;
+  description: string;
+  price: number;
+  category: string;
+  image_url: string;
+  is_available: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Review {
+  id: number;
+  user_id: number;
+  user_name: string;
+  restaurant_id: number;
+  rating: number;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface RatingStats {
+  average_rating: number;
+  review_count: number;
+  rating_distribution: {
+    five_star: number;
+    four_star: number;
+    three_star: number;
+    two_star: number;
+    one_star: number;
+  };
+}
 
 type RouteParams = {
   RestaurantDetail: {
@@ -64,8 +131,8 @@ const RestaurantDetailScreen: React.FC = () => {
         'Please login to write a review',
         [
           { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Login', 
+          {
+            text: 'Login',
             onPress: () => (navigation as any).navigate('Login')
           }
         ]
@@ -75,42 +142,62 @@ const RestaurantDetailScreen: React.FC = () => {
     setReviewFormVisible(true);
   };
 
-  // Load restaurant and menu
+  // Hàm load dữ liệu chi tiết nhà hàng và render
   const loadData = useCallback(async (isRefresh = false) => {
     try {
+      // Logic hiển thị loading:
+      // Nếu là pull-to-refresh -> setRefreshing(true) để hiện vòng quay trên đầu
+      // Nếu load lần đầu -> setLoading(true) để hiện spinner giữa màn hình
       if (isRefresh) {
         setRefreshing(true);
       } else {
         setLoading(true);
       }
-      
-      setError(null);
 
-      // Load restaurant details and menu items in parallel
-      const [restaurantData, menuData] = await Promise.all([
-        restaurantService.getRestaurantById(restaurantId),
-        menuItemService.getRestaurantMenu(restaurantId),
+      setError(null);
+      console.log('Loading restaurant detail for restaurantId:', restaurantId);
+
+      const token = await AsyncStorage.getItem('@foodgo_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      // Gọi song song 2 API để tối ưu tốc độ:
+      // 1. Thông tin nhà hàng (Tên, địa chỉ, ảnh...)
+      // 2. Menu món ăn của nhà hàng
+      const [restaurantResponse, menuResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/restaurants/${restaurantId}`, { headers }),
+        axios.get(`${API_BASE_URL}/menu-items/restaurant/${restaurantId}`, { headers }),
       ]);
 
-      setRestaurant(restaurantData);
-      setMenuItems(menuData);
+      console.log('Restaurant loaded:', restaurantResponse.data.data.restaurant.name);
+      console.log('Menu items loaded:', menuResponse.data.data.menuItems.length);
 
-      // Load reviews and rating stats
+      setRestaurant(restaurantResponse.data.data.restaurant);
+      setMenuItems(menuResponse.data.data.menuItems);
+
+      // Sau khi load thông tin chính xong, load tiếp Review & Rating
+      // (Dùng try-catch lồng để nếu review lỗi thì vẫn hiện nhà hàng bình thường)
       try {
-        const [reviewsData, statsData] = await Promise.all([
-          reviewService.getRestaurantReviews(restaurantId, { limit: 5 }),
-          reviewService.getRestaurantRatingStats(restaurantId),
+        const [reviewsResponse, statsResponse] = await Promise.all([
+          axios.get(`${API_BASE_URL}/reviews/restaurant/${restaurantId}`, {
+            headers,
+            params: { limit: 5 }, // Chỉ lấy 5 review mới nhất
+          }),
+          axios.get(`${API_BASE_URL}/reviews/restaurant/${restaurantId}/stats`, { headers }),
         ]);
-        setReviews(reviewsData.data.reviews);
-        setRatingStats(statsData);
-      } catch (reviewErr) {
-        console.error('Error loading reviews:', reviewErr);
-        // Don't fail the whole page if reviews fail
+
+        console.log('Reviews loaded:', reviewsResponse.data.data.reviews.length);
+
+        setReviews(reviewsResponse.data.data.reviews);
+        setRatingStats(statsResponse.data.data || null);
+      } catch (reviewErr: any) {
+        console.error('Error loading reviews:', reviewErr.response?.data || reviewErr.message);
+        // Không block giao diện nếu chỉ lỗi phần review
       }
     } catch (err: any) {
-      console.error('Error loading restaurant details:', err);
-      setError(err.message || 'Failed to load restaurant details');
+      console.error('Error loading restaurant details:', err.response?.data || err.message);
+      setError(err.response?.data?.message || err.message || 'Failed to load restaurant details');
     } finally {
+      // Tắt mọi trạng thái loading
       setLoading(false);
       setRefreshing(false);
     }
@@ -157,8 +244,8 @@ const RestaurantDetailScreen: React.FC = () => {
 
   // Load ảnh từ đường dẫn trong database
   const localImage = getImageFromPath(restaurant.cover_url || null);
-  const imageSource = localImage 
-    ? localImage 
+  const imageSource = localImage
+    ? localImage
     : { uri: restaurant.cover_url || 'https://via.placeholder.com/400x200?text=Restaurant' };
 
   return (
@@ -294,7 +381,7 @@ const RestaurantDetailScreen: React.FC = () => {
             {(showAllReviews ? reviews : reviews.slice(0, 3)).map((review) => (
               <ReviewCard key={review.id} review={review} />
             ))}
-            
+
             {reviews.length > 3 && (
               <Button
                 mode="outlined"

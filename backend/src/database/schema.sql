@@ -22,28 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_phone (phone)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 2. Addresses Table
-CREATE TABLE IF NOT EXISTS addresses (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  user_id INT NOT NULL,
-  label VARCHAR(50) NOT NULL,
-  recipient_name VARCHAR(100) NOT NULL,
-  recipient_phone VARCHAR(20) NOT NULL,
-  address_line1 VARCHAR(255) NOT NULL,
-  address_line2 VARCHAR(255),
-  city VARCHAR(100) NOT NULL,
-  district VARCHAR(100),
-  ward VARCHAR(100),
-  postal_code VARCHAR(20),
-  notes TEXT,
-  is_default BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_user_id (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 3. Categories Table
+-- 2. Categories Table
 CREATE TABLE IF NOT EXISTS categories (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(100) NOT NULL,
@@ -59,7 +38,7 @@ CREATE TABLE IF NOT EXISTS categories (
   INDEX idx_display_order (display_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4. Restaurants Table
+-- 3. Restaurants Table
 CREATE TABLE IF NOT EXISTS restaurants (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(200) NOT NULL,
@@ -91,7 +70,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
   INDEX idx_featured (is_featured)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5. Menu Items Table
+-- 4. Menu Items Table
 CREATE TABLE IF NOT EXISTS menu_items (
   id INT PRIMARY KEY AUTO_INCREMENT,
   restaurant_id INT NOT NULL,
@@ -119,25 +98,22 @@ CREATE TABLE IF NOT EXISTS menu_items (
   INDEX idx_featured (is_featured)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 6. Orders Table
+-- 5. Orders Table
 CREATE TABLE IF NOT EXISTS orders (
   id INT PRIMARY KEY AUTO_INCREMENT,
   order_number VARCHAR(50) UNIQUE NOT NULL,
   user_id INT NOT NULL,
   restaurant_id INT NOT NULL,
-  address_id INT,
   delivery_address TEXT NOT NULL,
   delivery_phone VARCHAR(20) NOT NULL,
   delivery_notes TEXT,
   subtotal DECIMAL(10,2) NOT NULL,
   delivery_fee DECIMAL(10,2) DEFAULT 0.00,
-  discount_amount DECIMAL(10,2) DEFAULT 0.00,
   tax_amount DECIMAL(10,2) DEFAULT 0.00,
   total_amount DECIMAL(10,2) NOT NULL,
-  coupon_code VARCHAR(50),
   payment_method ENUM('cash', 'card', 'wallet') DEFAULT 'cash',
   payment_status ENUM('pending', 'paid', 'failed', 'refunded') DEFAULT 'pending',
-  order_status ENUM('placed', 'confirmed', 'preparing', 'ready', 'delivering', 'delivered', 'cancelled') DEFAULT 'placed',
+  order_status ENUM('preparing', 'delivered', 'cancelled') DEFAULT 'preparing',
   estimated_delivery_time TIMESTAMP,
   delivered_at TIMESTAMP NULL,
   cancelled_at TIMESTAMP NULL,
@@ -155,7 +131,7 @@ CREATE TABLE IF NOT EXISTS orders (
   INDEX idx_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. Order Items Table
+-- 6. Order Items Table
 CREATE TABLE IF NOT EXISTS order_items (
   id INT PRIMARY KEY AUTO_INCREMENT,
   order_id INT NOT NULL,
@@ -172,7 +148,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   INDEX idx_menu_item (menu_item_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 8. Favorites Table
+-- 7. Favorites Table
 CREATE TABLE IF NOT EXISTS favorites (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT NOT NULL,
@@ -187,7 +163,7 @@ CREATE TABLE IF NOT EXISTS favorites (
   INDEX idx_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 9. Reviews Table
+-- 8. Reviews Table
 CREATE TABLE IF NOT EXISTS reviews (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT NOT NULL,

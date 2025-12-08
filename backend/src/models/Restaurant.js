@@ -1,7 +1,7 @@
 const { query } = require('../config/database');
 
 class Restaurant {
-  // Create a new restaurant
+  // Tạo mới nhà hàng
   static async create({ name, description = null, address = null, phone = null, cover_url = null, is_open = true }) {
     const sql = `
       INSERT INTO restaurants
@@ -9,10 +9,16 @@ class Restaurant {
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
+    // Tự động tạo slug từ tên (VD: "Phở 24" -> "pho-24")
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    
     const params = [name, slug, description, address, phone, cover_url, is_open ? 1 : 0];
+    
+    // Thực thi Insert
     const result = await query(sql, params);
     const insertId = result.insertId;
+    
+    // Trả về thông tin nhà hàng vừa tạo
     return await this.findById(insertId);
   }
 
@@ -28,29 +34,36 @@ class Restaurant {
   static async findAll(options = {}) {
     const { q, categoryId } = options;
     
-    // Ensure limit and offset are valid integers with default values
+    // 1. Xử lý phân trang (Limit & Offset)
+    // Đảm bảo limit/offset là số nguyên hợp lệ, tránh lỗi SQL Injection hoặc logic
     let limit = options.limit !== undefined ? parseInt(options.limit, 10) : 20;
     let offset = options.offset !== undefined ? parseInt(options.offset, 10) : 0;
     
-    // Fallback if parseInt returns NaN
     if (isNaN(limit) || limit < 1) limit = 20;
     if (isNaN(offset) || offset < 0) offset = 0;
     
+    // 2. Xây dựng câu lệnh WHERE động
     const where = [];
     const params = [];
 
+    // Nếu có từ khóa search (q)
     if (q) {
+      // Tìm kiếm tương đối (%) trong cả Tên và Mô tả
       where.push("(name LIKE ? OR description LIKE ?)");
       params.push(`%${q}%`, `%${q}%`);
     }
 
+    // Nếu có lọc theo danh mục (category)
     if (categoryId) {
       where.push('category_id = ?');
       params.push(parseInt(categoryId, 10));
     }
 
+    // Ghép các điều kiện WHERE lại với nhau bằng AND
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
+    // 3. Câu lệnh SQL cuối cùng
+    // Sắp xếp theo ngày tạo mới nhất (DESC)
     const sql = `
       SELECT r.id, r.name, r.slug, r.description, r.address, r.phone, r.cover_url, r.is_open, r.created_at
       FROM restaurants r
@@ -59,6 +72,7 @@ class Restaurant {
       LIMIT ${limit} OFFSET ${offset}
     `;
 
+    // 4. Thực thi query
     const rows = await query(sql, params);
     return rows;
   }

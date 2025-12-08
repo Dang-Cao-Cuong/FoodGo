@@ -1,8 +1,25 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { Text, TextInput, Button, Portal, Modal, IconButton } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import reviewService, { CreateReviewRequest } from '../../services/reviewService';
+import axios from 'axios';
+
+// API Configuration
+const getBaseURL = () => {
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:3000/api';
+  }
+  return 'http://localhost:3000/api';
+};
+
+const API_BASE_URL = getBaseURL();
+
+interface CreateReviewRequest {
+  rating: number;
+  comment?: string;
+  restaurant_id?: number;
+  menu_item_id?: number;
+}
 
 interface ReviewFormProps {
   visible: boolean;
@@ -38,7 +55,6 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
     setError('');
 
     try {
-      // Check if user has valid token (use same key as authService)
       const token = await AsyncStorage.getItem('@foodgo_token');
       if (!token) {
         Alert.alert(
@@ -60,29 +76,37 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
         reviewData.menu_item_id = menuItemId;
       }
 
-      await reviewService.createReview(reviewData);
+      console.log('Submitting review:', reviewData);
+
+      await axios.post(`${API_BASE_URL}/reviews`, reviewData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('Review submitted successfully');
 
       // Reset form
       setRating(0);
       setComment('');
-      
+
       if (onSubmitSuccess) {
         onSubmitSuccess();
       }
-      
+
       onDismiss();
     } catch (err: any) {
-      console.error('Review submission error:', err);
-      
+      console.error('Review submission error:', err.response?.data || err.message);
+
       // Handle specific authentication errors
-      if (err.message && err.message.includes('Authentication')) {
+      if (err.response?.status === 401) {
         Alert.alert(
           'Authentication Failed',
           'Your session has expired. Please login again.',
           [{ text: 'OK', onPress: handleCancel }]
         );
       } else {
-        setError(err.message || 'Failed to submit review');
+        setError(err.response?.data?.message || err.message || 'Failed to submit review');
       }
     } finally {
       setIsSubmitting(false);

@@ -7,6 +7,7 @@ import { useCart } from '../contexts/CartContext';
 import HomeScreen from '../screens/home/HomeScreen';
 import ProfileScreen from '../screens/auth/ProfileScreen';
 import CartScreen from '../screens/cart/CartScreen';
+import FavoritesScreen from '../screens/favorites/FavoritesScreen';
 import RestaurantDetailScreen from '../screens/restaurant/RestaurantDetailScreen';
 import CheckoutScreen from '../screens/checkout/CheckoutScreen';
 import OrderHistoryScreen from '../screens/orders/OrderHistoryScreen';
@@ -26,6 +27,13 @@ const MainTabNavigator: React.FC = () => {
         tabBarActiveTintColor: '#FF6B6B',
         tabBarInactiveTintColor: '#666',
         headerShown: true,
+        headerStyle: {
+          backgroundColor: '#FF6B6B',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
       }}>
       <Tab.Screen
         name="Home"
@@ -57,6 +65,17 @@ const MainTabNavigator: React.FC = () => {
         }}
       />
       <Tab.Screen
+        name="Favorites"
+        component={FavoritesScreen}
+        options={{
+          tabBarLabel: 'Favorites',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="heart" color={color} size={size} />
+          ),
+          title: 'My Favorites',
+        }}
+      />
+      <Tab.Screen
         name="Orders"
         component={OrderHistoryScreen}
         options={{
@@ -85,7 +104,16 @@ const MainTabNavigator: React.FC = () => {
 // Main Stack Navigator
 const MainNavigator: React.FC = () => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#FF6B6B',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}>
       <Stack.Screen
         name="MainTabs"
         component={MainTabNavigator}

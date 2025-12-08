@@ -22,6 +22,9 @@ router.get('/:orderId', orderController.getOrderById);
 // Cancel order
 router.post('/:orderId/cancel', orderController.cancelOrder);
 
+// Pay for order (complete or cancel)
+router.put('/:orderId/pay', orderController.payOrder);
+
 // Update order status (for admins/restaurant owners)
 router.patch('/:orderId/status', validateUpdateStatus, orderController.updateOrderStatus);
 
