@@ -14,13 +14,10 @@ exports.createReviewValidator = [
     .isLength({ max: 1000 })
     .withMessage('Comment must not exceed 1000 characters'),
   body('restaurant_id')
-    .optional()
+    .notEmpty()
+    .withMessage('Restaurant ID is required')
     .isInt({ min: 1 })
     .withMessage('Restaurant ID must be a valid positive integer'),
-  body('menu_item_id')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Menu item ID must be a valid positive integer'),
 ];
 
 // Validation rules for updating a review

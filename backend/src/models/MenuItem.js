@@ -25,23 +25,19 @@ class MenuItem {
     category = null,
     is_available = true,
     is_featured = false,
-    preparation_time = 15,
-    calories = null,
-    ingredients = null,
-    allergens = null
+    preparation_time = 15
   }) {
     const sql = `
       INSERT INTO menu_items
         (restaurant_id, name, slug, description, image_url, price, discounted_price, 
-         category, is_available, is_featured, preparation_time, calories, ingredients, allergens)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         category, is_available, is_featured, preparation_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const params = [
       restaurant_id, name, slug, description, image_url, price, discounted_price,
-      category, is_available ? 1 : 0, is_featured ? 1 : 0, preparation_time, 
-      calories, ingredients, allergens
+      category, is_available ? 1 : 0, is_featured ? 1 : 0, preparation_time
     ];
     
     const result = await query(sql, params);
@@ -54,8 +50,7 @@ class MenuItem {
   static async findById(id) {
     const sql = `
       SELECT id, restaurant_id, name, slug, description, image_url, price, discounted_price,
-             category, is_available, is_featured, preparation_time, calories, ingredients, 
-             allergens, average_rating, total_reviews, created_at
+             category, is_available, is_featured, preparation_time, average_rating, total_reviews, created_at
       FROM menu_items 
       WHERE id = ? 
       LIMIT 1
@@ -109,8 +104,8 @@ class MenuItem {
 
     const sql = `
       SELECT id, restaurant_id, name, slug, description, image_url, price, discounted_price,
-             category, is_available, is_featured, preparation_time, calories, ingredients,
-             allergens, average_rating, total_reviews, created_at
+             category, is_available, is_featured, preparation_time,
+             average_rating, total_reviews, created_at
       FROM menu_items
       ${whereClause}
       ORDER BY is_featured DESC, created_at DESC
@@ -148,9 +143,6 @@ class MenuItem {
     if (updateData.is_available !== undefined) { fields.push('is_available = ?'); params.push(updateData.is_available ? 1 : 0); }
     if (updateData.is_featured !== undefined) { fields.push('is_featured = ?'); params.push(updateData.is_featured ? 1 : 0); }
     if (updateData.preparation_time !== undefined) { fields.push('preparation_time = ?'); params.push(updateData.preparation_time); }
-    if (updateData.calories !== undefined) { fields.push('calories = ?'); params.push(updateData.calories); }
-    if (updateData.ingredients !== undefined) { fields.push('ingredients = ?'); params.push(updateData.ingredients); }
-    if (updateData.allergens !== undefined) { fields.push('allergens = ?'); params.push(updateData.allergens); }
 
     if (fields.length === 0) return await this.findById(id);
 

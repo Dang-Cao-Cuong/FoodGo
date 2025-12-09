@@ -5,19 +5,19 @@ class Review {
    * Create a new review
    */
   static async create(reviewData) {
-    const { userId, restaurantId, menuItemId, rating, comment } = reviewData;
+    const { userId, restaurantId, rating, comment } = reviewData;
 
     try {
-      // Check if user already reviewed this item
-      const existing = await this.findByUserAndItem(userId, restaurantId, menuItemId);
+      // Check if user already reviewed this restaurant
+      const existing = await this.findByUserAndRestaurant(userId, restaurantId);
       if (existing) {
-        throw new Error('You have already reviewed this item');
+        throw new Error('You have already reviewed this restaurant');
       }
 
       const [result] = await db.pool.execute(
-        `INSERT INTO reviews (user_id, restaurant_id, menu_item_id, rating, comment) 
-         VALUES (?, ?, ?, ?, ?)`,
-        [userId, restaurantId || null, menuItemId || null, rating, comment || null]
+        `INSERT INTO reviews (user_id, restaurant_id, rating, comment) 
+         VALUES (?, ?, ?, ?)`,
+        [userId, restaurantId, rating, comment || null]
       );
 
       return this.findById(result.insertId);
@@ -36,12 +36,10 @@ class Review {
           r.*,
           u.full_name as user_name,
           u.avatar_url as user_avatar,
-          res.name as restaurant_name,
-          m.name as menu_item_name
+          res.name as restaurant_name
         FROM reviews r
         JOIN users u ON r.user_id = u.id
         LEFT JOIN restaurants res ON r.restaurant_id = res.id
-        LEFT JOIN menu_items m ON r.menu_item_id = m.id
         WHERE r.id = ?`,
         [reviewId]
       );
@@ -53,24 +51,15 @@ class Review {
   }
 
   /**
-   * Find review by user and item
+   * Find review by user and restaurant
    */
-  static async findByUserAndItem(userId, restaurantId, menuItemId) {
+  static async findByUserAndRestaurant(userId, restaurantId) {
     try {
-      let query = `SELECT * FROM reviews WHERE user_id = ?`;
-      const params = [userId];
-
-      if (restaurantId) {
-        query += ' AND restaurant_id = ?';
-        params.push(restaurantId);
-      }
-
-      if (menuItemId) {
-        query += ' AND menu_item_id = ?';
-        params.push(menuItemId);
-      }
-
-      const [reviews] = await db.pool.execute(query, params);
+      const db = require('../config/database');
+      const [reviews] = await db.pool.execute(
+        `SELECT * FROM reviews WHERE user_id = ? AND restaurant_id = ?`,
+        [userId, restaurantId]
+      );
 
       return reviews.length > 0 ? reviews[0] : null;
     } catch (error) {
@@ -115,35 +104,6 @@ class Review {
   }
 
   /**
-   * Get reviews by menu item ID
-   */
-  static async findByMenuItemId(menuItemId, options = {}) {
-    const { limit = 20, offset = 0 } = options;
-
-    try {
-      const limitNum = parseInt(limit);
-      const offsetNum = parseInt(offset);
-      
-      const [reviews] = await db.pool.execute(
-        `SELECT 
-          r.*,
-          u.full_name as user_name,
-          u.avatar_url as user_avatar
-        FROM reviews r
-        JOIN users u ON r.user_id = u.id
-        WHERE r.menu_item_id = ?
-        ORDER BY r.created_at DESC
-        LIMIT ${limitNum} OFFSET ${offsetNum}`,
-        [menuItemId]
-      );
-
-      return reviews;
-    } catch (error) {
-      throw new Error(`Error getting menu item reviews: ${error.message}`);
-    }
-  }
-
-  /**
    * Get reviews by user ID
    */
   static async findByUserId(userId, options = {}) {
@@ -157,12 +117,9 @@ class Review {
         `SELECT 
           r.*,
           res.name as restaurant_name,
-          res.cover_url as restaurant_cover_url,
-          m.name as menu_item_name,
-          m.image_url as menu_item_image_url
+          res.cover_url as restaurant_cover_url
         FROM reviews r
         LEFT JOIN restaurants res ON r.restaurant_id = res.id
-        LEFT JOIN menu_items m ON r.menu_item_id = m.id
         WHERE r.user_id = ?
         ORDER BY r.created_at DESC
         LIMIT ${limitNum} OFFSET ${offsetNum}`,
@@ -283,31 +240,6 @@ class Review {
       };
     } catch (error) {
       throw new Error(`Error getting average rating: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get average rating for menu item
-   */
-  static async getMenuItemAverageRating(menuItemId) {
-    try {
-      const [result] = await db.pool.execute(
-        `SELECT 
-          AVG(rating) as average_rating,
-          COUNT(*) as review_count
-        FROM reviews
-        WHERE menu_item_id = ?`,
-        [menuItemId]
-      );
-
-      const stats = result[0];
-
-      return {
-        average_rating: stats.average_rating ? parseFloat(stats.average_rating).toFixed(1) : 0,
-        review_count: stats.review_count,
-      };
-    } catch (error) {
-      throw new Error(`Error getting menu item rating: ${error.message}`);
     }
   }
 }

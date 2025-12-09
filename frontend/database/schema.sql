@@ -1,19 +1,11 @@
-# FoodGo - Database Schema Design
+-- FoodGo Database Schema
+-- MySQL 8.0+
+-- Run this script to create all tables
 
-## Overview
-Database: MySQL 8.0+  
-Character Set: utf8mb4  
-Collation: utf8mb4_unicode_ci
+USE foodgo;
 
----
-
-## Database Structure
-
-### 1. Users Table
-Stores user account information and authentication data.
-
-```sql
-CREATE TABLE users (
+-- 1. Users Table
+CREATE TABLE IF NOT EXISTS users (
   id INT PRIMARY KEY AUTO_INCREMENT,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
@@ -29,38 +21,9 @@ CREATE TABLE users (
   INDEX idx_email (email),
   INDEX idx_phone (phone)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
 
-### 2. Addresses Table
-Stores user delivery addresses.
-
-```sql
-CREATE TABLE addresses (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  user_id INT NOT NULL,
-  label VARCHAR(50) NOT NULL, -- 'Home', 'Office', 'Other'
-  recipient_name VARCHAR(100) NOT NULL,
-  recipient_phone VARCHAR(20) NOT NULL,
-  address_line1 VARCHAR(255) NOT NULL,
-  address_line2 VARCHAR(255),
-  city VARCHAR(100) NOT NULL,
-  district VARCHAR(100),
-  ward VARCHAR(100),
-  postal_code VARCHAR(20),
-  notes TEXT,
-  is_default BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_user_id (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
-
-### 3. Categories Table
-Restaurant and menu item categories.
-
-```sql
-CREATE TABLE categories (
+-- 2. Categories Table
+CREATE TABLE IF NOT EXISTS categories (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(100) NOT NULL,
   slug VARCHAR(100) UNIQUE NOT NULL,
@@ -74,13 +37,9 @@ CREATE TABLE categories (
   INDEX idx_slug (slug),
   INDEX idx_display_order (display_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
 
-### 4. Restaurants Table
-Restaurant information.
-
-```sql
-CREATE TABLE restaurants (
+-- 3. Restaurants Table
+CREATE TABLE IF NOT EXISTS restaurants (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(200) NOT NULL,
   slug VARCHAR(200) UNIQUE NOT NULL,
@@ -93,12 +52,12 @@ CREATE TABLE restaurants (
   address VARCHAR(500) NOT NULL,
   city VARCHAR(100),
   district VARCHAR(100),
-  opening_hours JSON, -- {"mon": "9:00-22:00", "tue": "9:00-22:00", ...}
+  opening_hours JSON,
   average_rating DECIMAL(3,2) DEFAULT 0.00,
   total_reviews INT DEFAULT 0,
   delivery_fee DECIMAL(10,2) DEFAULT 0.00,
   min_order_amount DECIMAL(10,2) DEFAULT 0.00,
-  estimated_delivery_time INT DEFAULT 30, -- minutes
+  estimated_delivery_time INT DEFAULT 30,
   is_open BOOLEAN DEFAULT TRUE,
   is_featured BOOLEAN DEFAULT FALSE,
   is_active BOOLEAN DEFAULT TRUE,
@@ -110,13 +69,9 @@ CREATE TABLE restaurants (
   INDEX idx_rating (average_rating),
   INDEX idx_featured (is_featured)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
 
-### 5. Menu Items Table
-Restaurant menu items.
-
-```sql
-CREATE TABLE menu_items (
+-- 4. Menu Items Table
+CREATE TABLE IF NOT EXISTS menu_items (
   id INT PRIMARY KEY AUTO_INCREMENT,
   restaurant_id INT NOT NULL,
   name VARCHAR(200) NOT NULL,
@@ -125,10 +80,10 @@ CREATE TABLE menu_items (
   image_url VARCHAR(500),
   price DECIMAL(10,2) NOT NULL,
   discounted_price DECIMAL(10,2),
-  category VARCHAR(100), -- 'Appetizer', 'Main Course', 'Dessert', 'Beverage'
+  category VARCHAR(100),
   is_available BOOLEAN DEFAULT TRUE,
   is_featured BOOLEAN DEFAULT FALSE,
-  preparation_time INT DEFAULT 15, -- minutes
+  preparation_time INT DEFAULT 15,
   calories INT,
   ingredients TEXT,
   allergens TEXT,
@@ -142,35 +97,28 @@ CREATE TABLE menu_items (
   INDEX idx_price (price),
   INDEX idx_featured (is_featured)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
 
-### 6. Orders Table
-Customer orders.
-
-```sql
-CREATE TABLE orders (
+-- 5. Orders Table
+CREATE TABLE IF NOT EXISTS orders (
   id INT PRIMARY KEY AUTO_INCREMENT,
   order_number VARCHAR(50) UNIQUE NOT NULL,
   user_id INT NOT NULL,
   restaurant_id INT NOT NULL,
-  address_id INT,
   delivery_address TEXT NOT NULL,
   delivery_phone VARCHAR(20) NOT NULL,
   delivery_notes TEXT,
   subtotal DECIMAL(10,2) NOT NULL,
   delivery_fee DECIMAL(10,2) DEFAULT 0.00,
-  discount_amount DECIMAL(10,2) DEFAULT 0.00,
   tax_amount DECIMAL(10,2) DEFAULT 0.00,
   total_amount DECIMAL(10,2) NOT NULL,
-  coupon_code VARCHAR(50),
   payment_method ENUM('cash', 'card', 'wallet') DEFAULT 'cash',
   payment_status ENUM('pending', 'paid', 'failed', 'refunded') DEFAULT 'pending',
-  order_status ENUM('placed', 'confirmed', 'preparing', 'ready', 'delivering', 'delivered', 'cancelled') DEFAULT 'placed',
+  order_status ENUM('preparing', 'delivered', 'cancelled') DEFAULT 'preparing',
   estimated_delivery_time TIMESTAMP,
   delivered_at TIMESTAMP NULL,
   cancelled_at TIMESTAMP NULL,
   cancellation_reason TEXT,
-  rating INT, -- 1-5 stars
+  rating INT,
   review TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -182,13 +130,9 @@ CREATE TABLE orders (
   INDEX idx_status (order_status),
   INDEX idx_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
 
-### 7. Order Items Table
-Items within each order.
-
-```sql
-CREATE TABLE order_items (
+-- 6. Order Items Table
+CREATE TABLE IF NOT EXISTS order_items (
   id INT PRIMARY KEY AUTO_INCREMENT,
   order_id INT NOT NULL,
   menu_item_id INT NOT NULL,
@@ -203,13 +147,9 @@ CREATE TABLE order_items (
   INDEX idx_order (order_id),
   INDEX idx_menu_item (menu_item_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
 
-### 8. Favorites Table
-User's favorite restaurants and menu items.
-
-```sql
-CREATE TABLE favorites (
+-- 7. Favorites Table
+CREATE TABLE IF NOT EXISTS favorites (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT NOT NULL,
   restaurant_id INT,
@@ -222,43 +162,30 @@ CREATE TABLE favorites (
   UNIQUE KEY unique_menu_item_favorite (user_id, menu_item_id),
   INDEX idx_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
 
-### 9. Reviews Table
-Restaurant and menu item reviews.
-
-```sql
-CREATE TABLE reviews (
+-- 8. Reviews Table
+CREATE TABLE IF NOT EXISTS reviews (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT NOT NULL,
   restaurant_id INT,
-  menu_item_id INT,
-  order_id INT,
   rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
   comment TEXT,
-  images JSON, -- Array of image URLs
+  images JSON,
   helpful_count INT DEFAULT 0,
   is_verified_purchase BOOLEAN DEFAULT FALSE,
-  response TEXT, -- Restaurant response
+  response TEXT,
   responded_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE,
-  FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE,
-  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL,
   INDEX idx_user (user_id),
   INDEX idx_restaurant (restaurant_id),
-  INDEX idx_menu_item (menu_item_id),
   INDEX idx_rating (rating)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
 
-### 10. Coupons Table
-Discount coupons.
-
-```sql
-CREATE TABLE coupons (
+-- 10. Coupons Table
+CREATE TABLE IF NOT EXISTS coupons (
   id INT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(50) UNIQUE NOT NULL,
   description TEXT,
@@ -266,8 +193,8 @@ CREATE TABLE coupons (
   discount_value DECIMAL(10,2) NOT NULL,
   min_order_amount DECIMAL(10,2) DEFAULT 0.00,
   max_discount_amount DECIMAL(10,2),
-  usage_limit INT, -- Total usage limit
-  usage_per_user INT DEFAULT 1, -- Per user limit
+  usage_limit INT,
+  usage_per_user INT DEFAULT 1,
   used_count INT DEFAULT 0,
   valid_from TIMESTAMP NOT NULL,
   valid_until TIMESTAMP NOT NULL,
@@ -283,13 +210,9 @@ CREATE TABLE coupons (
   INDEX idx_active (is_active),
   INDEX idx_valid_dates (valid_from, valid_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
 
-### 11. Coupon Usage Table
-Track coupon usage by users.
-
-```sql
-CREATE TABLE coupon_usage (
+-- 11. Coupon Usage Table
+CREATE TABLE IF NOT EXISTS coupon_usage (
   id INT PRIMARY KEY AUTO_INCREMENT,
   coupon_id INT NOT NULL,
   user_id INT NOT NULL,
@@ -302,54 +225,6 @@ CREATE TABLE coupon_usage (
   INDEX idx_coupon (coupon_id),
   INDEX idx_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
 
----
-
-## Database Relationships
-
-```
-users (1) ----< (N) addresses
-users (1) ----< (N) orders
-users (1) ----< (N) favorites
-users (1) ----< (N) reviews
-users (1) ----< (N) coupon_usage
-
-categories (1) ----< (N) restaurants
-
-restaurants (1) ----< (N) menu_items
-restaurants (1) ----< (N) orders
-restaurants (1) ----< (N) favorites
-restaurants (1) ----< (N) reviews
-restaurants (1) ----< (N) coupons
-
-menu_items (1) ----< (N) order_items
-menu_items (1) ----< (N) favorites
-menu_items (1) ----< (N) reviews
-
-orders (1) ----< (N) order_items
-orders (1) ----< (1) reviews
-
-coupons (1) ----< (N) coupon_usage
-```
-
----
-
-## Indexes Strategy
-
-**Performance Indexes:**
-- User lookups: `email`, `phone`
-- Restaurant search: `slug`, `category_id`, `average_rating`
-- Menu items: `restaurant_id`, `price`, `is_featured`
-- Orders: `user_id`, `restaurant_id`, `order_status`, `created_at`
-- Reviews: `restaurant_id`, `menu_item_id`, `rating`
-
----
-
-## Sample Data
-
-See `backend/src/database/seed.sql` for sample data to populate the database.
-
----
-
-**Last Updated:** November 15, 2025
+-- Success message
+SELECT 'All tables created successfully!' AS message;

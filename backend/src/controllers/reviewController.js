@@ -6,19 +6,18 @@ const Review = require('../models/Review');
 exports.createReview = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { restaurant_id, menu_item_id, rating, comment } = req.body;
+    const { restaurant_id, rating, comment } = req.body;
 
-    if (!restaurant_id && !menu_item_id) {
+    if (!restaurant_id) {
       return res.status(400).json({
         success: false,
-        message: 'Either restaurant_id or menu_item_id is required',
+        message: 'restaurant_id is required',
       });
     }
 
     const reviewData = {
       userId,
       restaurantId: restaurant_id,
-      menuItemId: menu_item_id,
       rating,
       comment,
     };
@@ -51,38 +50,6 @@ exports.getRestaurantReviews = async (req, res, next) => {
 
     const reviews = await Review.findByRestaurantId(restaurantId, options);
     const ratingStats = await Review.getAverageRating(restaurantId);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        reviews,
-        rating_stats: ratingStats,
-        pagination: {
-          limit: options.limit,
-          offset: options.offset,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Get reviews for a menu item
- */
-exports.getMenuItemReviews = async (req, res, next) => {
-  try {
-    const { menuItemId } = req.params;
-    const { limit, offset } = req.query;
-
-    const options = {
-      limit: limit ? parseInt(limit) : 20,
-      offset: offset ? parseInt(offset) : 0,
-    };
-
-    const reviews = await Review.findByMenuItemId(menuItemId, options);
-    const ratingStats = await Review.getMenuItemAverageRating(menuItemId);
 
     res.status(200).json({
       success: true,

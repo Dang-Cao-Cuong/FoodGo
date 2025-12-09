@@ -17,17 +17,14 @@ const API_BASE_URL = getBaseURL();
 interface CreateReviewRequest {
   rating: number;
   comment?: string;
-  restaurant_id?: number;
-  menu_item_id?: number;
+  restaurant_id: number;
 }
 
 interface ReviewFormProps {
   visible: boolean;
   onDismiss: () => void;
   restaurantId?: number;
-  menuItemId?: number;
   restaurantName?: string;
-  menuItemName?: string;
   onSubmitSuccess?: () => void;
 }
 
@@ -35,9 +32,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
   visible,
   onDismiss,
   restaurantId,
-  menuItemId,
   restaurantName,
-  menuItemName,
   onSubmitSuccess,
 }) => {
   const [rating, setRating] = useState(0);
@@ -48,6 +43,11 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
   const handleSubmit = async () => {
     if (rating === 0) {
       setError('Please select a rating');
+      return;
+    }
+
+    if (!restaurantId) {
+      setError('Restaurant ID missing');
       return;
     }
 
@@ -68,13 +68,8 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
       const reviewData: CreateReviewRequest = {
         rating,
         comment: comment.trim() || undefined,
+        restaurant_id: restaurantId,
       };
-
-      if (restaurantId) {
-        reviewData.restaurant_id = restaurantId;
-      } else if (menuItemId) {
-        reviewData.menu_item_id = menuItemId;
-      }
 
       console.log('Submitting review:', reviewData);
 

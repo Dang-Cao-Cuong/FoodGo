@@ -14,13 +14,18 @@ class User {
         VALUES (?, ?, ?, ?)
       `;
 
-      const result = await query(sql, [email, password_hash, full_name, phone]);
+      const result = await query(sql, [
+        email, 
+        password_hash, 
+        full_name || null, 
+        phone || null
+      ]);
       
       return {
         id: result.insertId,
         email,
-        full_name,
-        phone
+        full_name: full_name || null,
+        phone: phone || null
       };
     } catch (error) {
       throw error;

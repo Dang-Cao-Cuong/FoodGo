@@ -33,24 +33,24 @@ interface User {
 const ProfileScreen: React.FC = () => {
   const { user: authUser, logout, updateProfile, changePassword, isLoading } = useAuth();
   const user = authUser as unknown as User;
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  
+
   // Profile form state
   const [profileData, setProfileData] = useState({
     full_name: user?.full_name || '',
     phone: user?.phone || '',
-    address: user?.address || '',
+
   });
-  
+
   // Password form state
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
-  
+
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
@@ -77,7 +77,7 @@ const ProfileScreen: React.FC = () => {
     setProfileData({
       full_name: user?.full_name || '',
       phone: user?.phone || '',
-      address: user?.address || '',
+
     });
     setIsEditing(false);
   };
@@ -90,17 +90,17 @@ const ProfileScreen: React.FC = () => {
       Alert.alert('Error', 'Current password is required');
       return false;
     }
-    
+
     if (!passwordData.newPassword) {
       Alert.alert('Error', 'New password is required');
       return false;
     }
-    
+
     if (passwordData.newPassword.length < 6) {
       Alert.alert('Error', 'New password must be at least 6 characters');
       return false;
     }
-    
+
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(passwordData.newPassword)) {
       Alert.alert(
         'Error',
@@ -108,12 +108,12 @@ const ProfileScreen: React.FC = () => {
       );
       return false;
     }
-    
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
       return false;
     }
-    
+
     return true;
   };
 
@@ -130,14 +130,14 @@ const ProfileScreen: React.FC = () => {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
       });
-      
+
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
       });
       setIsChangingPassword(false);
-      
+
       Alert.alert('Success', 'Password changed successfully');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to change password');
@@ -200,22 +200,19 @@ const ProfileScreen: React.FC = () => {
                 <Text style={styles.label}>Full Name:</Text>
                 <Text style={styles.value}>{user.full_name || 'Not set'}</Text>
               </View>
-              
+
               <View style={styles.infoRow}>
                 <Text style={styles.label}>Email:</Text>
                 <Text style={styles.value}>{user.email}</Text>
               </View>
-              
+
               <View style={styles.infoRow}>
                 <Text style={styles.label}>Phone:</Text>
                 <Text style={styles.value}>{user.phone || 'Not set'}</Text>
               </View>
-              
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>Address:</Text>
-                <Text style={styles.value}>{user.address || 'Not set'}</Text>
-              </View>
-              
+
+
+
               <View style={styles.infoRow}>
                 <Text style={styles.label}>Member Since:</Text>
                 <Text style={styles.value}>
@@ -241,7 +238,7 @@ const ProfileScreen: React.FC = () => {
                 mode="outlined"
                 style={styles.input}
               />
-              
+
               <TextInput
                 label="Phone"
                 value={profileData.phone}
@@ -252,18 +249,8 @@ const ProfileScreen: React.FC = () => {
                 keyboardType="phone-pad"
                 style={styles.input}
               />
-              
-              <TextInput
-                label="Address"
-                value={profileData.address}
-                onChangeText={(text) =>
-                  setProfileData({ ...profileData, address: text })
-                }
-                mode="outlined"
-                multiline
-                numberOfLines={2}
-                style={styles.input}
-              />
+
+
 
               <View style={styles.buttonRow}>
                 <Button
@@ -273,7 +260,7 @@ const ProfileScreen: React.FC = () => {
                   disabled={isLoading}>
                   Cancel
                 </Button>
-                
+
                 <Button
                   mode="contained"
                   onPress={handleUpdateProfile}
@@ -322,7 +309,7 @@ const ProfileScreen: React.FC = () => {
                 }
                 style={styles.input}
               />
-              
+
               <TextInput
                 label="New Password"
                 value={passwordData.newPassword}
@@ -344,7 +331,7 @@ const ProfileScreen: React.FC = () => {
                 }
                 style={styles.input}
               />
-              
+
               <TextInput
                 label="Confirm New Password"
                 value={passwordData.confirmPassword}
@@ -382,7 +369,7 @@ const ProfileScreen: React.FC = () => {
                   disabled={isLoading}>
                   Cancel
                 </Button>
-                
+
                 <Button
                   mode="contained"
                   onPress={handleChangePassword}

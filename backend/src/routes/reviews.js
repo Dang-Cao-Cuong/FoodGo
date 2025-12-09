@@ -8,8 +8,7 @@ const { createReviewValidator, updateReviewValidator, validate } = require('../v
 // Get restaurant reviews
 router.get('/restaurant/:restaurantId', reviewController.getRestaurantReviews);
 
-// Get menu item reviews
-router.get('/menu-item/:menuItemId', reviewController.getMenuItemReviews);
+
 
 // Get restaurant rating stats
 router.get('/restaurant/:restaurantId/stats', reviewController.getRestaurantRatingStats);
